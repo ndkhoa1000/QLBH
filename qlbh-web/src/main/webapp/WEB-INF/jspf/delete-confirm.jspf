@@ -1,0 +1,32 @@
+<div id="deleteConfirmModal" class="modal" onclick="dongXacNhanXoa(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h2>X&#xE1;c nh&#x1EAD;n x&#xF3;a</h2>
+                <p id="deleteConfirmText">B&#x1EA1;n c&#xF3; ch&#x1EAF;c mu&#x1ED1;n x&#xF3;a m&#x1EE5;c n&#xE0;y?</p>
+            </div>
+            <button class="modal-close" type="button" aria-label="&#x110;&#xF3;ng" onclick="dongXacNhanXoa()">&times;</button>
+        </div>
+        <div class="actions">
+            <button class="btn btn-secondary" type="button" onclick="dongXacNhanXoa()">H&#x1EE7;y</button>
+            <a id="deleteConfirmAction" class="btn btn-accent" href="#">X&#xF3;a</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    function moXacNhanXoa(url, message) {
+        document.getElementById("deleteConfirmAction").href = url;
+        document.getElementById("deleteConfirmText").textContent = message || "B\u1ea1n c\u00f3 ch\u1eafc mu\u1ed1n x\u00f3a m\u1ee5c n\u00e0y?";
+        document.getElementById("deleteConfirmModal").classList.add("active");
+        return false;
+    }
+
+    function dongXacNhanXoa(event) {
+        if (event && event.target && event.target.id !== "deleteConfirmModal") {
+            return;
+        }
+        document.getElementById("deleteConfirmModal").classList.remove("active");
+        document.getElementById("deleteConfirmAction").href = "#";
+    }
+</script>

@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  db:
+    image: mariadb:10.11
+    container_name: qlbh-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: admin123
+      MYSQL_DATABASE: qlbh
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
+    networks:
+      - qlbh-network
+
+  product-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MODULE_NAME: qlbh-product-service
+    container_name: qlbh-product-service
+    ports:
+      - "8081:8080"
+    environment:
+      - DB_URL=jdbc:mariadb://db:3306/qlbh
+      - DB_USER=root
+      - DB_PASSWORD=admin123
+    depends_on:
+      - db
+    networks:
+      - qlbh-network
+
+  customer-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MODULE_NAME: qlbh-customer-service
+    container_name: qlbh-customer-service
+    ports:
+      - "8082:8080"
+    environment:
+      - DB_URL=jdbc:mariadb://db:3306/qlbh
+      - DB_USER=root
+      - DB_PASSWORD=admin123
+    depends_on:
+      - db
+    networks:
+      - qlbh-network
+
+  supplier-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MODULE_NAME: qlbh-supplier-service
+    container_name: qlbh-supplier-service
+    ports:
+      - "8083:8080"
+    environment:
+      - DB_URL=jdbc:mariadb://db:3306/qlbh
+      - DB_USER=root
+      - DB_PASSWORD=admin123
+    depends_on:
+      - db
+    networks:
+      - qlbh-network
+
+  invoice-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MODULE_NAME: qlbh-invoice-service
+    container_name: qlbh-invoice-service
+    ports:
+      - "8084:8080"
+    environment:
+      - DB_URL=jdbc:mariadb://db:3306/qlbh
+      - DB_USER=root
+      - DB_PASSWORD=admin123
+    depends_on:
+      - db
+    networks:
+      - qlbh-network
+
+  web-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        MODULE_NAME: qlbh-web
+    container_name: qlbh-web-ui
+    ports:
+      - "8080:8080"
+    environment:
+      - PRODUCT_SERVICE_URL=http://product-service:8080/QLBH/rest/sanpham
+      - CUSTOMER_SERVICE_URL=http://customer-service:8080/QLBH/rest/khachhang
+      - SUPPLIER_SERVICE_URL=http://supplier-service:8080/QLBH/rest/nhacungcap
+      - INVOICE_SERVICE_URL=http://invoice-service:8080/QLBH/rest/hoadon
+    depends_on:
+      - product-service
+      - customer-service
+      - supplier-service
+      - invoice-service
+    networks:
+      - qlbh-network
+
+networks:
+  qlbh-network:
+    driver: bridge

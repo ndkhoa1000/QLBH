@@ -1,0 +1,67 @@
+# Maven
+target/
+**/target/
+
+# Keep the Maven wrapper JAR tracked
+!.mvn/wrapper/maven-wrapper.jar
+
+# Generated sources
+**/generated-sources/
+**/generated-test-sources/
+
+# Build artifacts inside module target directories
+**/target/*.jar
+**/target/*.war
+**/target/*.ear
+
+# IDEs and editors
+.idea/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+.vscode/
+
+# Eclipse/STS
+.springBeans
+.sts4-cache
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Gradle / other build dirs
+.gradle/
+build/
+out/
+
+# Logs and temp files
+*.log
+logs/
+tmp/
+*.tmp
+*.swp
+*~
+.#*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+*.env
+*.jks
+*.keystore
+
+# Docker
+docker-compose.override.yml
+
+# Misc
+*.class
+*.jar.stackdump
