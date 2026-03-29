@@ -1,10 +1,11 @@
 package ctu.cit.model;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.time.LocalDate;
-import java.util.*;
 
 public class HoaDon {
 	private String maHD;
@@ -28,7 +29,6 @@ public class HoaDon {
 	public void themChiTiet(ChiTietHD ct) {
 		if (ct != null) {
 			dsChiTiet.add(ct);
-			ct.getSanPham().giamSoLuong(ct.getSoLuong());
 		}
 	}
 

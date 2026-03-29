@@ -149,6 +149,7 @@ public class SanPhamServlet extends HttpServlet  {
                         if (ncc == null) {
                             message = "Khong tim thay nha cung cap.";
                         } else {
+                            sp.setNhaCungCap(ncc);
                             Response restResponse = productTarget
                                     .request()
                                     .post(Entity.entity(sp, MediaType.APPLICATION_JSON));

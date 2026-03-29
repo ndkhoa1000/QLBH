@@ -16,6 +16,7 @@ import javax.ws.rs.core.MediaType;
 import ctu.cit.model.KhachHang;
 
 @Path("/khachhang")
+@Produces(MediaType.APPLICATION_JSON)
 public class KhachHangService {
 
     private static IKhachHangService service = new KhachHangServiceImpl();
@@ -33,6 +34,7 @@ public class KhachHangService {
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     public String add(KhachHang kh) {
         if (kh == null || kh.getMaKH() == null) return "Fail";
         return service.themKhachHang(kh) ? "OK" : "Ma da ton tai";
@@ -41,6 +43,7 @@ public class KhachHangService {
     @PUT
     @Path("/{ma}")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     public String update(@PathParam("ma") String ma, KhachHang kh) {
         if (kh == null) return "Fail";
         return service.capNhat(ma, kh) ? "OK" : "Khong tim thay";
@@ -48,6 +51,7 @@ public class KhachHangService {
 
     @DELETE
     @Path("/{ma}")
+    @Produces(MediaType.TEXT_PLAIN)
     public String delete(@PathParam("ma") String ma) {
         return service.xoa(ma) ? "OK" : "Khong tim thay";
     }

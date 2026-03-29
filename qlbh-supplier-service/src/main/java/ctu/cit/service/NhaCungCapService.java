@@ -16,6 +16,7 @@ import javax.ws.rs.core.MediaType;
 import ctu.cit.model.NhaCungCap;
 
 @Path("/nhacungcap")
+@Produces(MediaType.APPLICATION_JSON)
 public class NhaCungCapService {
 
     private static INhaCungCapService service = new NhaCungCapServiceImpl();
@@ -33,6 +34,7 @@ public class NhaCungCapService {
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     public String add(NhaCungCap ncc) {
         if (ncc == null || ncc.getMaNCC() == null) return "Fail";
         return service.them(ncc) ? "OK" : "Fail";
@@ -41,12 +43,14 @@ public class NhaCungCapService {
     @PUT
     @Path("/{ma}")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     public String update(@PathParam("ma") String ma, NhaCungCap ncc) {
         return service.capNhat(ma, ncc) ? "OK" : "Fail";
     }
 
     @DELETE
     @Path("/{ma}")
+    @Produces(MediaType.TEXT_PLAIN)
     public String delete(@PathParam("ma") String ma) {
         return service.xoa(ma) ? "OK" : "Fail";
     }

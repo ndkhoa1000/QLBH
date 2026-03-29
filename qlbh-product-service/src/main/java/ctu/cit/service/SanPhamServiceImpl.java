@@ -47,6 +47,27 @@ public class SanPhamServiceImpl implements ISanPhamService {
     }
 
     @Override
+    public boolean capNhatSanPham(String ma, SanPham sp) {
+        if (ma == null || sp == null) {
+            return false;
+        }
+
+        String sql = "UPDATE sanpham SET tensp = ?, gia = ?, soluongton = ?, mancc = ? WHERE masp = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, sp.getTenSP());
+            ps.setDouble(2, sp.getGia());
+            ps.setInt(3, sp.getSoLuongTon());
+            ps.setString(4, sp.getNhaCungCap() != null ? sp.getNhaCungCap().getMaNCC() : null);
+            ps.setString(5, ma);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @Override
     public SanPham timSanPham(String ma) {
         String sql = "SELECT * FROM sanpham WHERE masp = ?";
         try (Connection conn = DatabaseUtil.getConnection();
@@ -118,6 +139,7 @@ public class SanPhamServiceImpl implements ISanPhamService {
         if (maNCC != null) {
             NhaCungCap ncc = new NhaCungCap();
             ncc.setMaNCC(maNCC);
+            ncc.setTenNCC(maNCC);
             sp.setNhaCungCap(ncc);
         }
         return sp;

@@ -29,6 +29,7 @@ public class SanPhamService {
     // ================= ADD =================
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     public String add(SanPham sp) {
         if (sp == null || sp.getMaSP() == null) {
             return "Fail";
@@ -40,21 +41,15 @@ public class SanPhamService {
     @PUT
     @Path("/{ma}")
     @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
     public String update(@PathParam("ma") String ma, SanPham spMoi) {
-        SanPham sp = service.timSanPham(ma);
-
-        if (sp != null && spMoi != null) {
-            sp.setTenSP(spMoi.getTenSP());
-            sp.setGia(spMoi.getGia());
-            sp.setSoLuongTon(spMoi.getSoLuongTon());
-            return "OK";
-        }
-        return "Fail";
+        return service.capNhatSanPham(ma, spMoi) ? "OK" : "Fail";
     }
 
     // ================= DELETE =================
     @DELETE
     @Path("/{ma}")
+    @Produces(MediaType.TEXT_PLAIN)
     public String delete(@PathParam("ma") String ma) {
         return service.xoaSanPham(ma) ? "OK" : "Fail";
     }
@@ -62,6 +57,7 @@ public class SanPhamService {
     // ================= GIẢM SỐ LƯỢNG =================
     @PUT
     @Path("/giam/{ma}/{sl}")
+    @Produces(MediaType.TEXT_PLAIN)
     public String giam(@PathParam("ma") String ma, @PathParam("sl") int sl) {
         if (sl <= 0) return "Fail";
         return service.giamSoLuong(ma, sl) ? "OK" : "Fail";
@@ -70,6 +66,7 @@ public class SanPhamService {
     // ================= TĂNG SỐ LƯỢNG =================
     @PUT
     @Path("/tang/{ma}/{sl}")
+    @Produces(MediaType.TEXT_PLAIN)
     public String tang(@PathParam("ma") String ma, @PathParam("sl") int sl) {
         if (sl <= 0) return "Fail";
         return service.tangSoLuong(ma, sl) ? "OK" : "Fail";
