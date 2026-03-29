@@ -51,5 +51,18 @@ CREATE TABLE IF NOT EXISTS chitiethd (
     FOREIGN KEY (masp) REFERENCES sanpham(masp)
 );
 
+-- Bảng sequences dùng để sinh ID tập trung
+CREATE TABLE IF NOT EXISTS sequences (
+    name     VARCHAR(50) PRIMARY KEY,
+    next_val BIGINT      NOT NULL DEFAULT 1
+);
+
+INSERT IGNORE INTO sequences (name, next_val) VALUES
+    ('HOADON',     1),
+    ('KHUYENMAI',  1),
+    ('KHACHHANG',  1),
+    ('SANPHAM',    1),
+    ('NHACUNGCAP', 1);
+
 -- Dữ liệu mẫu (Tùy chọn)
 INSERT IGNORE INTO nhacungcap (mancc, tenncc, diachi, sodienthoai) VALUES ('NCC_TEST', 'Công ty Phân Phối Việt', 'Cần Thơ', '0123456789');

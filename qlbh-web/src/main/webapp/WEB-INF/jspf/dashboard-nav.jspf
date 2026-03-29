@@ -6,7 +6,8 @@
     String khachHangClass = requestUri.endsWith("/khachhang") ? "active" : "";
     String sanPhamClass = requestUri.endsWith("/sanpham") ? "active" : "";
     String nhaCungCapClass = requestUri.endsWith("/nhacungcap") ? "active" : "";
-    String hoaDonClass = requestUri.endsWith("/hoadon") ? "active" : "";
+    String hoaDonClass   = requestUri.endsWith("/hoadon") ? "active" : "";
+    String khuyenMaiClass = requestUri.endsWith("/khuyenmai") ? "active" : "";
 %>
 <div class="topbar">
     <div class="brand-block">
@@ -17,6 +18,7 @@
 
     <nav class="menu" aria-label="&#x110;i&#x1EC1;u h&#x1B0;&#x1EDB;ng ch&#xED;nh">
         <a class="<%= hoaDonClass %>" href="<%= contextPath %>/hoadon">H&#xF3;a &#x111;&#x1A1;n</a>
+        <a class="<%= khuyenMaiClass %>" href="<%= contextPath %>/khuyenmai">Khuy&#x1ebFn m&#xE3;i</a>
         <a class="<%= khachHangClass %>" href="<%= contextPath %>/khachhang">Kh&#xE1;ch h&#xE0;ng</a>
         <a class="<%= sanPhamClass %>" href="<%= contextPath %>/sanpham">S&#x1EA3;n ph&#x1EA9;m</a>
         <a class="<%= nhaCungCapClass %>" href="<%= contextPath %>/nhacungcap">Nh&#xE0; cung c&#x1EA5;p</a>

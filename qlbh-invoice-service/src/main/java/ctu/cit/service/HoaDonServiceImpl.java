@@ -11,6 +11,8 @@ import ctu.cit.model.KhuyenMai;
 import ctu.cit.model.SanPham;
 import ctu.cit.util.DatabaseUtil;
 
+import ctu.cit.util.IdGenerator;
+
 public class HoaDonServiceImpl implements IHoaDonService {
 
     public HoaDonServiceImpl() {
@@ -19,14 +21,19 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
     @Override
     public boolean taoHoaDon(HoaDon hd) {
-        if (hd == null || hd.getMaHD() == null) return false;
-        String sql = "INSERT INTO hoadon (mahd, ngaylap, vat, makh) VALUES (?, ?, ?, ?)";
+        if (hd == null) return false;
+        // Generate ID if not provided
+        if (hd.getMaHD() == null || hd.getMaHD().isBlank()) {
+            hd.setMaHD(IdGenerator.next("HOADON"));
+        }
+        String sql = "INSERT INTO hoadon (mahd, ngaylap, vat, makh, makm) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, hd.getMaHD());
             ps.setDate(2, Date.valueOf(hd.getNgayLap()));
             ps.setDouble(3, hd.getVAT());
             ps.setString(4, hd.getKhachHang() != null ? hd.getKhachHang().getMaKH() : null);
+            ps.setString(5, hd.getKhuyenMai() != null ? hd.getKhuyenMai().getMaKM() : null);
             
             boolean ok = ps.executeUpdate() > 0;
             if (ok && hd.getDsChiTiet() != null) {
@@ -227,18 +234,29 @@ public class HoaDonServiceImpl implements IHoaDonService {
 
     @Override
     public boolean capNhatHoaDon(String maHD, HoaDon hd) {
-        String sql = "UPDATE hoadon SET ngaylap = ?, vat = ?, makh = ? WHERE mahd = ?";
+        String sql = "UPDATE hoadon SET ngaylap = ?, vat = ?, makh = ?, makm = ? WHERE mahd = ?";
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setDate(1, Date.valueOf(hd.getNgayLap()));
             ps.setDouble(2, hd.getVAT());
             ps.setString(3, hd.getKhachHang() != null ? hd.getKhachHang().getMaKH() : null);
-            ps.setString(4, maHD);
+            ps.setString(4, hd.getKhuyenMai() != null ? hd.getKhuyenMai().getMaKM() : null);
+            ps.setString(5, maHD);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
+    }
+
+    @Override
+    public HoaDon getById(String maHD) {
+        return findHoaDonById(maHD);
+    }
+
+    @Override
+    public String nextId() {
+        return IdGenerator.next("HOADON");
     }
 
     @Override

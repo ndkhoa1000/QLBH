@@ -4,11 +4,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import ctu.cit.model.ChiTietHD;
 import ctu.cit.model.HoaDon;
 import ctu.cit.model.KhachHang;
 import ctu.cit.model.KhuyenMai;
-import ctu.cit.model.SanPham;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.jackson.JacksonFeature;
 
@@ -23,440 +21,241 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.ext.ContextResolver;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.UriBuilder;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.ext.ContextResolver;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Manages invoice *headers* only (list, create, update, delete).
+ * Invoice detail management is handled by HoaDonDetailServlet (/hoadon-detail).
+ */
 @WebServlet("/hoadon")
 public class HoaDonServlet extends HttpServlet {
+
     private static final Logger LOGGER = Logger.getLogger(HoaDonServlet.class.getName());
 
-    private String safe(String value) {
-        return value == null ? "" : value;
+    private String safe(String v) { return v == null ? "" : v; }
+
+    private String htmlEsc(String v) {
+        if (v == null) return "";
+        return v.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+                .replace("\"","&quot;").replace("'","&#39;");
     }
 
-    private String escapeJs(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.replace("\\", "\\\\").replace("'", "\\'");
+    private String escapeJs(String v) {
+        if (v == null) return "";
+        return v.replace("\\","\\\\").replace("'","\\'");
     }
 
-    private Client createClient() {
-        ClientConfig config = new ClientConfig()
-                .register(JacksonFeature.class)
-                .register(new ContextResolver<ObjectMapper>() {
-                    private final ObjectMapper mapper = new ObjectMapper()
-                            .registerModule(new JavaTimeModule())
-                            .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
-                            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    private double normPct(double v) { return (v > 1 && v <= 100) ? v / 100.0 : v; }
 
-                    @Override
-                    public ObjectMapper getContext(Class<?> type) {
-                        return mapper;
-                    }
-                });
-        return ClientBuilder.newClient(config);
-    }
-
-    private String buildClientErrorMessage(String fallback, Exception e) {
+    private String clientError(String fallback, Exception e) {
         if (e instanceof WebApplicationException) {
-            WebApplicationException webEx = (WebApplicationException) e;
-            if (webEx.getResponse() != null) {
-                return fallback + " (HTTP " + webEx.getResponse().getStatus() + ")";
-            }
+            WebApplicationException w = (WebApplicationException) e;
+            if (w.getResponse() != null) return fallback + " (HTTP " + w.getResponse().getStatus() + ")";
         }
         return fallback;
     }
 
-    private String htmlEsc(String v) {
-        if (v == null) return "";
-        return v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
+    private Client createClient() {
+        return ClientBuilder.newClient(new ClientConfig()
+            .register(JacksonFeature.class)
+            .register((ContextResolver<ObjectMapper>) type -> new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)));
     }
 
-    private double normalizePercentValue(double value) {
-        if (value > 1 && value <= 100) {
-            return value / 100;
-        }
-        return value;
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        doPost(req, resp);
     }
 
-
-    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-        doPost(request, response);
-    }
-
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    @Override
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
         request.setCharacterEncoding("UTF-8");
         response.setCharacterEncoding("UTF-8");
 
-        // ============lay ds hoa don ================
         Client client = createClient();
-        
-        // Target cho từng service
-        WebTarget customerTarget = client.target(ServiceUrlConfig.getCustomerServiceUrl());
-        WebTarget productTarget = client.target(ServiceUrlConfig.getProductServiceUrl());
-        WebTarget invoiceTarget = client.target(ServiceUrlConfig.getInvoiceServiceUrl());
-
-        List<KhachHang> dsKhachHang = Collections.emptyList();
         try {
-            KhachHang[] array = customerTarget.request(MediaType.APPLICATION_JSON).get(KhachHang[].class);
-            if (array != null) {
-                dsKhachHang = Arrays.asList(array);
-            }
-        } catch (ProcessingException | WebApplicationException e) {
-            LOGGER.log(Level.WARNING, "Failed to load customer list", e);
-        }
+            WebTarget customerTarget = client.target(ServiceUrlConfig.getCustomerServiceUrl());
+            WebTarget invoiceTarget  = client.target(ServiceUrlConfig.getInvoiceServiceUrl());
+            WebTarget kmTarget       = client.target(ServiceUrlConfig.getKhuyenMaiServiceUrl());
 
-        // ===============  lay ds san pham =================
-        List<SanPham> dsSP = Collections.emptyList();
-        try {
-            SanPham[] array = productTarget.request(MediaType.APPLICATION_JSON).get(SanPham[].class);
-            if (array != null) {
-                dsSP = Arrays.asList(array);
-            }
-        } catch (ProcessingException | WebApplicationException e) {
-            LOGGER.log(Level.WARNING, "Failed to load product list", e);
-        }
+            List<KhachHang> dsKH = loadList(customerTarget, KhachHang[].class, "khachhang");
+            List<KhuyenMai> dsKM = loadList(kmTarget,       KhuyenMai[].class, "khuyenmai");
 
-        String action = request.getParameter("action");
-        String message = "";
-        String messagekm = "";
-        String activePromotionInvoiceId = "";
-        String activeChiTietInvoiceId = "";
+            String action  = request.getParameter("action");
+            String message = "";
 
-
-        // ========= thao tac form=================
-        if (action != null) {
             if ("add".equals(action)) {
-                try {
-                    HoaDon hd = new HoaDon();
-                    hd.setMaHD(request.getParameter("mahd"));
-
-                    String ngayLap = request.getParameter("ngaylap");
-                    if (ngayLap != null && !ngayLap.isBlank()) {
-                        hd.setNgayLap(LocalDate.parse(ngayLap.substring(0, 10)));
-                    }
-                    String vat = request.getParameter("vat");
-                    if (vat != null && !vat.isBlank()) {
-                        hd.setVAT(normalizePercentValue(Double.parseDouble(vat)));
-                    }
-                    String maKH = request.getParameter("makh");
-                    if (maKH != null && !maKH.isBlank()) {
-                        KhachHang khachHang = null;
-                        for (KhachHang kh : dsKhachHang) {
-                            if (maKH.equals(kh.getMaKH())) {
-                                khachHang = kh;
-                                break;
-                            }
-                        }
-                        if (khachHang == null) {
-                            khachHang = new KhachHang();
-                            khachHang.setMaKH(maKH);
-                        }
-                        hd.setKhachHang(khachHang);
-                    }
-
-                    String[] maSPs = request.getParameterValues("masp[]");
-                    String[] soLuongs = request.getParameterValues("soluong[]");
-                    String[] donGias = request.getParameterValues("dongia[]");
-                    List<ChiTietHD> dsChiTiet = hd.getDsChiTiet();
-                    if (dsChiTiet == null) {
-                        dsChiTiet = new ArrayList<>();
-                    }
-
-                    if (maSPs != null && soLuongs != null && donGias != null) {
-                        int count = Math.min(maSPs.length, Math.min(soLuongs.length, donGias.length));
-                        for (int i = 0; i < count; i++) {
-                            if (maSPs[i] == null || maSPs[i].isBlank()) {
-                                continue;
-                            }
-                            if (soLuongs[i] == null || soLuongs[i].isBlank() || donGias[i] == null || donGias[i].isBlank()) {
-                                message = "Chi tiet hoa don khong hop le.";
-                                break;
-                            }
-
-                            ChiTietHD ct = new ChiTietHD();
-                            ct.setMaSP(maSPs[i]);
-                            ct.setSoLuong(Integer.parseInt(soLuongs[i]));
-                            ct.setDonGia(Double.parseDouble(donGias[i]));
-
-                            SanPham sanPham = null;
-                            for (SanPham sp : dsSP) {
-                                if (maSPs[i].equals(sp.getMaSP())) {
-                                    sanPham = sp;
-                                    break;
-                                }
-                            }
-                            if (sanPham == null) {
-                                sanPham = new SanPham();
-                                sanPham.setMaSP(maSPs[i]);
-                            }
-                            ct.setSanPham(sanPham);
-                            dsChiTiet.add(ct);
-                        }
-                    }
-
-                    if (!message.isEmpty()) {
-                        request.setAttribute("message", message);
-                    } else {
-                    message = invoiceTarget.request(MediaType.TEXT_PLAIN)
-                            .post(Entity.entity(hd, MediaType.APPLICATION_JSON), String.class);
-                    }
-                } catch (NumberFormatException | DateTimeParseException e) {
-                    LOGGER.log(Level.WARNING, "Invalid invoice form data", e);
-                    message = "Du lieu hoa don khong hop le.";
-                } catch (ProcessingException | WebApplicationException e) {
-                    LOGGER.log(Level.WARNING, "Failed to create invoice", e);
-                    message = buildClientErrorMessage("Khong tao duoc hoa don.", e);
-                }
-            } else if ("delete".equals(action)) {
-                String maHD = request.getParameter("mahd");
-                if (maHD != null && !maHD.isBlank()) {
-                    try {
-                        message = invoiceTarget.path(maHD).request(MediaType.TEXT_PLAIN).delete(String.class);
-                    } catch (ProcessingException | WebApplicationException e) {
-                        LOGGER.log(Level.WARNING, "Failed to delete invoice", e);
-                        message = buildClientErrorMessage("Khong xoa duoc hoa don.", e);
-                    }
-                }
+                message = handleAdd(request, invoiceTarget, dsKH, dsKM, response);
+                if (message == null) return; // redirect done
             } else if ("update".equals(action)) {
-                try {
-                    HoaDon hd = new HoaDon();
-                    String maHD = request.getParameter("mahd");
-                    hd.setMaHD(maHD);
-                    String ngayLap = request.getParameter("ngaylap");
-                    if (ngayLap != null && !ngayLap.isBlank()) {
-                        hd.setNgayLap(LocalDate.parse(ngayLap.substring(0, 10)));
-                    }
-                    String vat = request.getParameter("vat");
-                    if (vat != null && !vat.isBlank()) {
-                        hd.setVAT(normalizePercentValue(Double.parseDouble(vat)));
-                    }
-                    String maKH = request.getParameter("makh");
-                    if (maKH != null && !maKH.isBlank()) {
-                        KhachHang khachHang = null;
-                        for (KhachHang kh : dsKhachHang) {
-                            if (maKH.equals(kh.getMaKH())) { khachHang = kh; break; }
-                        }
-                        if (khachHang == null) { khachHang = new KhachHang(); khachHang.setMaKH(maKH); }
-                        hd.setKhachHang(khachHang);
-                    }
-                    message = invoiceTarget.path(maHD)
-                            .request(MediaType.TEXT_PLAIN)
-                            .put(Entity.entity(hd, MediaType.APPLICATION_JSON), String.class);
-                } catch (NumberFormatException | DateTimeParseException e) {
-                    LOGGER.log(Level.WARNING, "Invalid invoice update data", e);
-                    message = "Du lieu hoa don khong hop le.";
-                } catch (ProcessingException | WebApplicationException e) {
-                    LOGGER.log(Level.WARNING, "Failed to update invoice", e);
-                    message = buildClientErrorMessage("Khong cap nhat duoc hoa don.", e);
-                }
-            } else if ("aplkm".equals(action)) {
-                String maHD = request.getParameter("mahdkm");
-                String maKM = request.getParameter("makmchohd");
-                String ngayApDung = request.getParameter("ngayapdungkm");
-                String ngayKetThuc = request.getParameter("ngayketthuckm");
-                String phanTramGiam = request.getParameter("phantramgiamkm");
-                activePromotionInvoiceId = maHD != null ? maHD : "";
-
-                if (maHD != null && !maHD.isBlank() && maKM != null && !maKM.isBlank()
-                        && ngayApDung != null && !ngayApDung.isBlank()
-                        && ngayKetThuc != null && !ngayKetThuc.isBlank()
-                        && phanTramGiam != null && !phanTramGiam.isBlank()) {
-                    KhuyenMai khuyenMai = new KhuyenMai();
-                    khuyenMai.setMaKM(maKM);
-                    khuyenMai.setNgayApDung(LocalDate.parse(ngayApDung));
-                    khuyenMai.setNgayKetThuc(LocalDate.parse(ngayKetThuc));
-                    khuyenMai.setPhanTramGiam(normalizePercentValue(Double.parseDouble(phanTramGiam)));
-
-                    try {
-                        messagekm = invoiceTarget.path(maHD)
-                                .path("khuyenmai")
-                                .request(MediaType.TEXT_PLAIN)
-                                .put(Entity.entity(khuyenMai, MediaType.APPLICATION_JSON), String.class);
-                    } catch (ProcessingException | WebApplicationException e) {
-                        LOGGER.log(Level.WARNING, "Failed to apply promotion", e);
-                        messagekm = buildClientErrorMessage("Khong ap dung duoc khuyen mai tu server.", e);
-                    }
-                } else {
-                    messagekm = "Khong hop le";
-                }
-            } else if ("addChiTiet".equals(action)) {
-                String maHDct = request.getParameter("mahd");
-                String maSPct = request.getParameter("masp");
-                String soLuongStr = request.getParameter("soluong");
-                String donGiaStr = request.getParameter("dongia");
-                activeChiTietInvoiceId = maHDct != null ? maHDct : "";
-                if (maHDct != null && !maHDct.isBlank() && maSPct != null && !maSPct.isBlank()
-                        && soLuongStr != null && !soLuongStr.isBlank()) {
-                    try {
-                        ChiTietHD ct = new ChiTietHD();
-                        ct.setMaSP(maSPct);
-                        ct.setSoLuong(Integer.parseInt(soLuongStr));
-                        if (donGiaStr != null && !donGiaStr.isBlank()) {
-                            ct.setDonGia(Double.parseDouble(donGiaStr));
-                        } else {
-                            for (SanPham sp : dsSP) {
-                                if (maSPct.equals(sp.getMaSP())) { ct.setDonGia(sp.getGia()); break; }
-                            }
-                        }
-                        message = invoiceTarget.path(maHDct).path("muahang")
-                                .request(MediaType.TEXT_PLAIN)
-                                .post(Entity.entity(ct, MediaType.APPLICATION_JSON), String.class);
-                    } catch (NumberFormatException e) {
-                        LOGGER.log(Level.WARNING, "Invalid addChiTiet data", e);
-                        message = "So luong hoac don gia khong hop le.";
-                    } catch (ProcessingException | WebApplicationException e) {
-                        LOGGER.log(Level.WARNING, "Failed to add chi tiet", e);
-                        message = buildClientErrorMessage("Khong them duoc chi tiet.", e);
-                    }
-                } else {
-                    message = "Du lieu chi tiet khong hop le.";
-                }
-            } else if ("deleteChiTiet".equals(action)) {
-                String maHDct = request.getParameter("mahd");
-                String maSPct = request.getParameter("masp");
-                activeChiTietInvoiceId = maHDct != null ? maHDct : "";
-                if (maHDct != null && !maHDct.isBlank() && maSPct != null && !maSPct.isBlank()) {
-                    try {
-                        message = invoiceTarget.path(maHDct).path("chitiet").path(maSPct)
-                                .request(MediaType.TEXT_PLAIN)
-                                .delete(String.class);
-                    } catch (ProcessingException | WebApplicationException e) {
-                        LOGGER.log(Level.WARNING, "Failed to delete chi tiet", e);
-                        message = buildClientErrorMessage("Khong xoa duoc chi tiet.", e);
-                    }
-                }
+                message = handleUpdate(request, invoiceTarget, dsKH, dsKM);
+            } else if ("delete".equals(action)) {
+                message = handleDelete(request, invoiceTarget);
             }
+
+            List<HoaDon> dsHD = loadList(invoiceTarget, HoaDon[].class, "invoices");
+
+            StringBuilder rows = new StringBuilder();
+            for (HoaDon hd : dsHD) {
+                String ngayText = hd.getNgayLap() != null ? hd.getNgayLap().toString() : "";
+                String khText   = hd.getKhachHang() != null ? safe(hd.getKhachHang().getMaKH()) : "";
+                String kmText   = hd.getKhuyenMai()  != null ? safe(hd.getKhuyenMai().getMaKM())  : "";
+                double vatDisp  = hd.getVAT() > 0 && hd.getVAT() <= 1 ? Math.round(hd.getVAT() * 100) : hd.getVAT();
+
+                rows.append("<tr>");
+                rows.append("<td><a href='").append(request.getContextPath())
+                    .append("/hoadon-detail?mahd=").append(htmlEsc(hd.getMaHD())).append("'>")
+                    .append(htmlEsc(hd.getMaHD())).append("</a></td>");
+                rows.append("<td>").append(ngayText).append("</td>");
+                rows.append("<td>").append(vatDisp).append("%</td>");
+                rows.append("<td>").append(htmlEsc(khText)).append("</td>");
+                rows.append("<td>").append(kmText.isEmpty() ? "\u2014" : htmlEsc(kmText)).append("</td>");
+                rows.append("<td>").append(hd.tinhTongTien()).append("</td>");
+                rows.append("<td><div class='table-actions'>");
+                rows.append("<button class='table-inline-button' type='button' onclick=\"suaHoaDon('")
+                    .append(escapeJs(hd.getMaHD())).append("','").append(escapeJs(ngayText)).append("',")
+                    .append(vatDisp).append(",'").append(escapeJs(khText)).append("','")
+                    .append(escapeJs(kmText)).append("')\">S\u1eeda</button>");
+                rows.append("<a class='table-action table-action-danger' href='hoadon?action=delete&mahd=")
+                    .append(htmlEsc(hd.getMaHD()))
+                    .append("' onclick=\"return moXacNhanXoa(this.href,'X\u00f3a h\u00f3a \u0111\u01a1n n\u00e0y?')\">X\u00f3a</a>");
+                rows.append("<a class='table-inline-button table-inline-button-info' href='")
+                    .append(request.getContextPath()).append("/hoadon-detail?mahd=")
+                    .append(htmlEsc(hd.getMaHD())).append("'>Chi ti\u1ebft &rarr;</a>");
+                rows.append("</div></td>");
+                rows.append("</tr>");
+            }
+            if (rows.length() == 0) {
+                rows.append("<tr class='table-empty'><td colspan='7'>Ch\u01b0a c\u00f3 h\u00f3a \u0111\u01a1n n\u00e0o.</td></tr>");
+            }
+
+            StringBuilder khOpts = new StringBuilder("<option value=''>-- Ch\u1ecdn kh\u00e1ch h\u00e0ng --</option>");
+            for (KhachHang kh : dsKH) {
+                if (kh == null) continue;
+                khOpts.append("<option value='").append(htmlEsc(safe(kh.getMaKH()))).append("'>")
+                      .append(htmlEsc(safe(kh.getMaKH()))).append(" - ").append(htmlEsc(safe(kh.getHoTen())))
+                      .append("</option>");
+            }
+
+            StringBuilder kmOpts = new StringBuilder("<option value=''>-- Kh\u00f4ng \u00e1p d\u1ee5ng --</option>");
+            for (KhuyenMai km : dsKM) {
+                if (km == null) continue;
+                double pct = km.getPhanTramGiam() <= 1 ? Math.round(km.getPhanTramGiam() * 100) : km.getPhanTramGiam();
+                kmOpts.append("<option value='").append(htmlEsc(safe(km.getMaKM()))).append("'>")
+                      .append(htmlEsc(safe(km.getMaKM()))).append(" (").append(pct).append("% \u2013 ")
+                      .append(km.getNgayApDung()).append(" \u2192 ").append(km.getNgayKetThuc())
+                      .append(")</option>");
+            }
+
+            request.setAttribute("dsHoaDon",       rows.toString());
+            request.setAttribute("message",         message);
+            request.setAttribute("dsKhachHangOpts", khOpts.toString());
+            request.setAttribute("dsKhuyenMaiOpts", kmOpts.toString());
+            request.getRequestDispatcher("Hoadon.jsp").forward(request, response);
+        } finally {
+            client.close();
         }
+    }
 
-        List<HoaDon> dsHD = Collections.emptyList();
+    // ---- action handlers ----
+
+    private String handleAdd(HttpServletRequest request, WebTarget invoiceTarget,
+                              List<KhachHang> dsKH, List<KhuyenMai> dsKM,
+                              HttpServletResponse response) throws IOException {
         try {
-            HoaDon[] array = invoiceTarget.request(MediaType.APPLICATION_JSON).get(HoaDon[].class);
-            if (array != null) {
-                dsHD = Arrays.asList(array);
+            HoaDon hd = buildHeaderFromRequest(request, dsKH, dsKM);
+            Response resp = invoiceTarget.request(MediaType.APPLICATION_JSON)
+                    .post(Entity.entity(hd, MediaType.APPLICATION_JSON));
+            if (resp.getStatus() == 201) {
+                HoaDon created = resp.readEntity(HoaDon.class);
+                String maHD = created != null ? created.getMaHD() : "";
+                response.sendRedirect(request.getContextPath()
+                        + "/hoadon-detail?mahd=" + maHD + "&msg=T%E1%BA%A1o+ho%C3%A1+%C4%91%C6%A1n+th%C3%A0nh+c%C3%B4ng");
+                return null;
             }
+            return "Kh\u00f4ng t\u1ea1o \u0111\u01b0\u1ee3c h\u00f3a \u0111\u01a1n (server tr\u1ea3 " + resp.getStatus() + ")";
+        } catch (NumberFormatException | DateTimeParseException e) {
+            LOGGER.log(Level.WARNING, "Invalid invoice form data", e);
+            return "D\u1eef li\u1ec7u h\u00f3a \u0111\u01a1n kh\u00f4ng h\u1ee3p l\u1ec7.";
         } catch (ProcessingException | WebApplicationException e) {
-            LOGGER.log(Level.WARNING, "Failed to load invoice list", e);
-            if (message.isEmpty()) {
-                message = "Khong tai duoc danh sach hoa don.";
-            }
+            LOGGER.log(Level.WARNING, "Failed to create invoice", e);
+            return clientError("Kh\u00f4ng t\u1ea1o \u0111\u01b0\u1ee3c h\u00f3a \u0111\u01a1n.", e);
         }
+    }
 
-
-
-        // Shared JSON mapper
-        ObjectMapper jsonMapper = new ObjectMapper()
-                .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-        // ======== in bang hoa don =============
-        StringBuilder inDS = new StringBuilder();
-        for (HoaDon hd : dsHD) {
-            String ngayLapText = hd.getNgayLap() != null ? hd.getNgayLap().toString() : "";
-            String maKhText = hd.getKhachHang() != null && hd.getKhachHang().getMaKH() != null ? hd.getKhachHang().getMaKH() : "";
-            List<ChiTietHD> dsCT = hd.getDsChiTiet() != null ? hd.getDsChiTiet() : Collections.emptyList();
-            inDS.append("<tr>");
-            inDS.append("<td>").append(hd.getMaHD()).append("</td>");
-            inDS.append("<td>").append(ngayLapText).append("</td>");
-            inDS.append("<td>").append(hd.getVAT()).append("</td>");
-            inDS.append("<td>").append(maKhText).append("</td>");
-            inDS.append("<td>").append(hd.tinhTongTien()).append("</td>");
-            inDS.append("<td><div class='table-actions'>");
-            inDS.append("<button class='table-inline-button' type='button' onclick=\"chinhSuaHoaDon('")
-                    .append(escapeJs(hd.getMaHD())).append("','").append(escapeJs(ngayLapText)).append("',")
-                    .append(hd.getVAT()).append(",'")
-                    .append(escapeJs(maKhText)).append("')\">Sửa</button>");
-            inDS.append("<a class='table-action table-action-danger' onclick=\"return moXacNhanXoa(this.href, 'B\\u1ea1n c\\u00f3 ch\\u1eafc mu\\u1ed1n x\\u00f3a h\\u00f3a \\u0111\\u01a1n n\\u00e0y?');\" href='hoadon?action=delete&mahd=")
-                    .append(hd.getMaHD())
-                    .append("'>Xóa</a>");
-            inDS.append("<button class='table-inline-button table-inline-button-accent' type='button' onclick=\"moKhuyenMai('")
-                    .append(escapeJs(hd.getMaHD()))
-                    .append("')\">Khuyến mãi</button>");
-            inDS.append("<button class='table-inline-button table-inline-button-info' type='button' onclick=\"moSuaChiTiet('")
-                    .append(escapeJs(hd.getMaHD()))
-                    .append("')\">Sửa chi tiết</button></div></td>");
-            inDS.append("<td><button class='table-inline-button table-inline-button-toggle' id='toggle-")
-                    .append(hd.getMaHD())
-                    .append("' aria-label='Xem chi tiết' type='button' onclick=\"xemCT('")
-                    .append(hd.getMaHD())
-                    .append("')\">&#8250;</button></td>");
-            inDS.append("</tr>");
-
-            inDS.append("<tr ").append("id='").append(hd.getMaHD()).append("' class='hide ct'>");
-            inDS.append("<td colspan='7'>");
-            inDS.append("<table>");
-                inDS.append("<tr>");
-                inDS.append("<th> Ma SP </th>");
-                inDS.append("<th> San Pham </th>");
-                inDS.append("<th> So luong </th>");
-                inDS.append("<th> Don Gia </th>");
-                inDS.append("</tr>");
-
-            for(ChiTietHD ct : dsCT){
-                String maSP = ct.getMaSP() != null ? ct.getMaSP() : "";
-                String sanPhamText = ct.getSanPham() != null ? ct.getSanPham().toString() : "";
-                inDS.append("<tr>");
-                inDS.append("<td>").append(maSP).append("</td>");
-                inDS.append("<td>").append(sanPhamText).append("</td>");
-                inDS.append("<td>").append(ct.getSoLuong()).append("</td>");
-                inDS.append("<td>").append(ct.getDonGia()).append("</td>");
-                inDS.append("</tr>");
-            }
-            if (dsCT.isEmpty()) {
-                inDS.append("<tr class='table-empty'><td colspan='4'>Chưa có chi tiết hóa đơn.</td></tr>");
-            }
-
-            inDS.append("</table>");
-            inDS.append("</td>");
-            inDS.append("</tr>");
-
-            // Embed chi tiet JSON for the modal
-            String ctJsonData = "[]";
-            try { ctJsonData = jsonMapper.writeValueAsString(dsCT).replace("</", "<\\/"); } catch (Exception ctEx) { /* ignored */ }
-            inDS.append("<script type='application/json' id='ct-json-")
-                    .append(htmlEsc(hd.getMaHD())).append("'>").append(ctJsonData).append("</script>");
-        }
-        if (inDS.length() == 0) {
-            inDS.append("<tr class='table-empty'><td colspan='7'>Chưa có hóa đơn nào.</td></tr>");
-        }
-        request.setAttribute("dsHoaDon", inDS.toString());
-        request.setAttribute("message", message);
-        request.setAttribute("messagekm", messagekm);
-        request.setAttribute("activePromotionInvoiceId", safe(activePromotionInvoiceId));
-        request.setAttribute("activeChiTietInvoiceId", safe(activeChiTietInvoiceId));
-
-        // Build KH dropdown options
-        StringBuilder dsKHOpts = new StringBuilder();
-        dsKHOpts.append("<option value=''>-- Chọn khách hàng --</option>");
-        for (KhachHang kh : dsKhachHang) {
-            if (kh == null) continue;
-            String ma = safe(kh.getMaKH());
-            String ten = safe(kh.getHoTen());
-            dsKHOpts.append("<option value='").append(htmlEsc(ma)).append("'>").append(htmlEsc(ma)).append(" - ").append(htmlEsc(ten)).append("</option>");
-        }
-        request.setAttribute("dsKhachHangOpts", dsKHOpts.toString());
-
-        // Serialize product list for JS dropdown in dynamic CT rows
+    private String handleUpdate(HttpServletRequest request, WebTarget invoiceTarget,
+                                 List<KhachHang> dsKH, List<KhuyenMai> dsKM) {
         try {
-
-            request.setAttribute("dsSPJson", jsonMapper.writeValueAsString(dsSP).replace("</", "<\\/"));
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to serialize product list", e);
-            request.setAttribute("dsSPJson", "[]");
+            String maHD = request.getParameter("mahd");
+            HoaDon hd = buildHeaderFromRequest(request, dsKH, dsKM);
+            hd.setMaHD(maHD);
+            return invoiceTarget.path(maHD).request(MediaType.TEXT_PLAIN)
+                    .put(Entity.entity(hd, MediaType.APPLICATION_JSON), String.class);
+        } catch (NumberFormatException | DateTimeParseException e) {
+            LOGGER.log(Level.WARNING, "Invalid invoice update data", e);
+            return "D\u1eef li\u1ec7u kh\u00f4ng h\u1ee3p l\u1ec7.";
+        } catch (ProcessingException | WebApplicationException e) {
+            LOGGER.log(Level.WARNING, "Failed to update invoice", e);
+            return clientError("Kh\u00f4ng c\u1eadp nh\u1eadt \u0111\u01b0\u1ee3c h\u00f3a \u0111\u01a1n.", e);
         }
+    }
 
-        request.getRequestDispatcher("Hoadon.jsp").forward(request, response);
-        client.close();
+    private String handleDelete(HttpServletRequest request, WebTarget invoiceTarget) {
+        String maHD = request.getParameter("mahd");
+        if (maHD == null || maHD.isBlank()) return "Thi\u1ebfu m\u00e3 h\u00f3a \u0111\u01a1n.";
+        try {
+            return invoiceTarget.path(maHD).request(MediaType.TEXT_PLAIN).delete(String.class);
+        } catch (ProcessingException | WebApplicationException e) {
+            LOGGER.log(Level.WARNING, "Failed to delete invoice", e);
+            return clientError("Kh\u00f4ng x\u00f3a \u0111\u01b0\u1ee3c h\u00f3a \u0111\u01a1n.", e);
+        }
+    }
+
+    private HoaDon buildHeaderFromRequest(HttpServletRequest request,
+                                           List<KhachHang> dsKH, List<KhuyenMai> dsKM) {
+        HoaDon hd = new HoaDon();
+        String ngayLap = request.getParameter("ngaylap");
+        if (ngayLap != null && !ngayLap.isBlank()) hd.setNgayLap(LocalDate.parse(ngayLap.substring(0, 10)));
+        String vat = request.getParameter("vat");
+        if (vat != null && !vat.isBlank()) hd.setVAT(normPct(Double.parseDouble(vat)));
+        String maKH = request.getParameter("makh");
+        if (maKH != null && !maKH.isBlank()) {
+            KhachHang kh = dsKH.stream().filter(k -> maKH.equals(k.getMaKH())).findFirst().orElseGet(() -> {
+                KhachHang k = new KhachHang(); k.setMaKH(maKH); return k;
+            });
+            hd.setKhachHang(kh);
+        }
+        String maKM = request.getParameter("makm");
+        if (maKM != null && !maKM.isBlank()) {
+            KhuyenMai km = dsKM.stream().filter(k -> maKM.equals(k.getMaKM())).findFirst().orElseGet(() -> {
+                KhuyenMai k = new KhuyenMai(); k.setMaKM(maKM); return k;
+            });
+            hd.setKhuyenMai(km);
+        }
+        return hd;
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> List<T> loadList(WebTarget target, Class<T[]> arrClass, String label) {
+        try {
+            T[] arr = target.request(MediaType.APPLICATION_JSON).get(arrClass);
+            return arr != null ? Arrays.asList(arr) : Collections.emptyList();
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to load " + label, e);
+            return Collections.emptyList();
+        }
     }
 }

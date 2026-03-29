@@ -101,6 +101,7 @@ services:
       - CUSTOMER_SERVICE_URL=http://customer-service:8080/QLBH/rest/khachhang
       - SUPPLIER_SERVICE_URL=http://supplier-service:8080/QLBH/rest/nhacungcap
       - INVOICE_SERVICE_URL=http://invoice-service:8080/QLBH/rest/hoadon
+      - KHUYENMAI_SERVICE_URL=http://invoice-service:8080/QLBH/rest/khuyenmai
     depends_on:
       - product-service
       - customer-service

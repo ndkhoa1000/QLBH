@@ -11,21 +11,46 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
-import ctu.cit.model.ChiTietHD;
+import javax.ws.rs.core.Response;
 import ctu.cit.model.HoaDon;
 import ctu.cit.model.KhuyenMai;
+import ctu.cit.model.ChiTietHD;
+
+import javax.ws.rs.core.Response;
 
 @Path("/hoadon")
 public class HoaDonService {
 
     private static IHoaDonService service = new HoaDonServiceImpl();
 
+    /** Generate next invoice ID without creating the invoice. */
+    @GET
+    @Path("/nextid")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String nextId() {
+        return service.nextId();
+    }
+
+    /** Create invoice header (dsChiTiet optional). Returns 201 + created HoaDon JSON. */
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.TEXT_PLAIN)
-    public String taoHoaDon(HoaDon hd) {
-        if (hd == null) return "That bai";
-        return service.taoHoaDon(hd) ? "Tao thanh cong" : "That bai";
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response taoHoaDon(HoaDon hd) {
+        if (hd == null) return Response.status(400).entity(new HoaDon()).build();
+        boolean ok = service.taoHoaDon(hd);
+        if (ok) {
+            HoaDon created = service.getById(hd.getMaHD());
+            return Response.status(201).entity(created != null ? created : hd).build();
+        }
+        return Response.status(500).build();
+    }
+
+    @GET
+    @Path("/{maHD}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getById(@PathParam("maHD") String maHD) {
+        HoaDon hd = service.getById(maHD);
+        return hd != null ? Response.ok(hd).build() : Response.status(404).build();
     }
 
     @POST

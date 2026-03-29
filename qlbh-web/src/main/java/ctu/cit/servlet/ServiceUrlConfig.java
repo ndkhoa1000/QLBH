@@ -17,6 +17,10 @@ public class ServiceUrlConfig {
         return getEnvOrDefault("INVOICE_SERVICE_URL", "http://localhost:8084/QLBH/rest/hoadon");
     }
 
+    public static String getKhuyenMaiServiceUrl() {
+        return getEnvOrDefault("KHUYENMAI_SERVICE_URL", "http://localhost:8084/QLBH/rest/khuyenmai");
+    }
+
     private static String getEnvOrDefault(String key, String defaultValue) {
         String value = System.getenv(key);
         return (value != null && !value.isBlank()) ? value : defaultValue;

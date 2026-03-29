@@ -12,6 +12,8 @@ public interface IHoaDonService {
 	boolean apDungKhuyenMai(String maHD, KhuyenMai km);
 	double tinhTongTien(String maHD);
 	List<HoaDon> getAll();
+	HoaDon getById(String maHD);
+	String nextId();
 	boolean xoaHoaDon(String maHD);
 	boolean capNhatHoaDon(String maHD, HoaDon hd);
 	boolean xoaChiTiet(String maHD, String maSP);
