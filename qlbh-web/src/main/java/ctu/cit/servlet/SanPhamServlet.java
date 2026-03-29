@@ -39,6 +39,11 @@ public class SanPhamServlet extends HttpServlet  {
         return value == null ? "" : value;
     }
 
+    private String htmlEsc(String v) {
+        if (v == null) return "";
+        return v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
+    }
+
     private String escapeJs(String value) {
         if (value == null) {
             return "";
@@ -250,6 +255,18 @@ public class SanPhamServlet extends HttpServlet  {
             }
             request.setAttribute("dsSP", inDS.toString());
             request.setAttribute("message", message);
+
+            // Build NCC dropdown options for the form
+            StringBuilder dsNCCOptsHtml = new StringBuilder();
+            dsNCCOptsHtml.append("<option value=''>-- Chọn nhà cung cấp --</option>");
+            for (NhaCungCap ncc : dsNCC) {
+                if (ncc == null) continue;
+                String ma = safe(ncc.getMaNCC());
+                String ten = safe(ncc.getTenNCC());
+                dsNCCOptsHtml.append("<option value='").append(htmlEsc(ma)).append("'>").append(htmlEsc(ma)).append(" - ").append(htmlEsc(ten)).append("</option>");
+            }
+            request.setAttribute("dsNCCOpts", dsNCCOptsHtml.toString());
+
             request.getRequestDispatcher("Sanpham.jsp").forward(request, response);
         } finally {
             client.close();

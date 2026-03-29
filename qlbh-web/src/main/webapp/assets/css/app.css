@@ -303,6 +303,21 @@ textarea {
     font-weight: 700;
 }
 
+.auto-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: rgba(18, 60, 105, 0.08);
+    color: var(--primary);
+    vertical-align: middle;
+    margin-left: 6px;
+}
+
 .card-header-actions {
     display: flex;
     flex-wrap: wrap;
@@ -440,7 +455,8 @@ tbody tr:hover {
 
 .field input,
 .field select,
-.rowct input {
+.rowct input,
+.rowct select {
     width: 100%;
     padding: 11px 12px;
     border: 1px solid rgba(100, 116, 139, 0.28);
@@ -452,7 +468,8 @@ tbody tr:hover {
 
 .field input:focus,
 .field select:focus,
-.rowct input:focus {
+.rowct input:focus,
+.rowct select:focus {
     outline: none;
     border-color: rgba(18, 60, 105, 0.8);
     box-shadow: 0 0 0 4px rgba(18, 60, 105, 0.1);
@@ -553,7 +570,7 @@ tbody tr:hover {
 
 .rowct {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    grid-template-columns: 2fr 1fr 1fr auto;
     gap: 12px;
     align-items: end;
     padding: 14px;

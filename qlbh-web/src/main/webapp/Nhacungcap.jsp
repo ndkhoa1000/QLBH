@@ -68,8 +68,8 @@
                     <input id="nhacungcap-action" type="hidden" name="action" value="add">
                     <div class="form-grid">
                         <div class="field">
-                            <label for="mancc">Mã nhà cung cấp</label>
-                            <input id="mancc" type="text" name="mancc" required>
+                            <label for="mancc">Mã nhà cung cấp <span class="auto-badge">Tự động</span></label>
+                            <input id="mancc" type="text" name="mancc" required readonly>
                         </div>
                         <div class="field">
                             <label for="tenncc">Tên nhà cung cấp</label>
@@ -99,17 +99,21 @@
 <%@ include file="/WEB-INF/jspf/delete-confirm.jspf" %>
 
 <script>
+    function genMa(prefix) {
+        return prefix + Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
+
     function datCheDoNhaCungCap(dangSua) {
         document.getElementById("nhacungcap-form-title").textContent = dangSua ? "Cập nhật nhà cung cấp" : "Thêm nhà cung cấp";
         document.getElementById("nhacungcap-submit").textContent = dangSua ? "Lưu thay đổi" : "Thêm nhà cung cấp";
         document.getElementById("nhacungcap-action").value = dangSua ? "update" : "add";
         document.getElementById("nhacungcap-cancel").classList.toggle("is-hidden", !dangSua);
-        document.getElementById("mancc").readOnly = dangSua;
+        document.getElementById("mancc").readOnly = true;
     }
 
     function lamMoiNhaCungCap() {
         document.getElementById("nhacungcap-form").reset();
-        document.getElementById("mancc").value = "";
+        document.getElementById("mancc").value = genMa("NCC");
         document.getElementById("tenncc").value = "";
         document.getElementById("dcncc").value = "";
         document.getElementById("sdtncc").value = "";
@@ -123,6 +127,9 @@
         document.getElementById("sdtncc").value = sdtncc;
         datCheDoNhaCungCap(true);
     }
+
+    // Auto-fill code on page load
+    document.getElementById("mancc").value = genMa("NCC");
 </script>
 </body>
 </html>

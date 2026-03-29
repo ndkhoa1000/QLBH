@@ -97,4 +97,8 @@ public class HoaDon {
 	public List<ChiTietHD> getDsChiTiet() {
 		return dsChiTiet;
 	}
+
+	public void setDsChiTiet(List<ChiTietHD> dsChiTiet) {
+		if (dsChiTiet != null) this.dsChiTiet = dsChiTiet;
+	}
 }

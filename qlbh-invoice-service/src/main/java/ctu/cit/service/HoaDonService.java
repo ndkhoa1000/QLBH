@@ -71,4 +71,20 @@ public class HoaDonService {
             ? "Xoa thanh cong"
             : "Khong tim thay";
     }
+
+    @PUT
+    @Path("/{maHD}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.TEXT_PLAIN)
+    public String capNhatHoaDon(@PathParam("maHD") String maHD, HoaDon hd) {
+        if (hd == null) return "Du lieu khong hop le";
+        return service.capNhatHoaDon(maHD, hd) ? "Cap nhat thanh cong" : "Cap nhat that bai";
+    }
+
+    @DELETE
+    @Path("/{maHD}/chitiet/{maSP}")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String xoaChiTiet(@PathParam("maHD") String maHD, @PathParam("maSP") String maSP) {
+        return service.xoaChiTiet(maHD, maSP) ? "Xoa chi tiet thanh cong" : "Khong tim thay chi tiet";
+    }
 }

@@ -69,8 +69,8 @@
                     <input id="sanpham-action" type="hidden" name="action" value="add">
                     <div class="form-grid">
                         <div class="field">
-                            <label for="masp">Mã sản phẩm</label>
-                            <input id="masp" type="text" name="masp" required>
+                            <label for="masp">Mã sản phẩm <span class="auto-badge">Tự động</span></label>
+                            <input id="masp" type="text" name="masp" required readonly>
                         </div>
                         <div class="field">
                             <label for="tensp">Tên sản phẩm</label>
@@ -81,8 +81,8 @@
                             <input id="gia" type="text" name="gia" inputmode="numeric" pattern="\d*" required>
                         </div>
                         <div class="field">
-                            <label for="nhacungcap">Mã nhà cung cấp</label>
-                            <input id="nhacungcap" type="text" name="nhacungcap" required>
+                            <label for="nhacungcap">Nhà cung cấp</label>
+                            <select id="nhacungcap" name="nhacungcap" required>${dsNCCOpts}</select>
                         </div>
                         <div class="field">
                             <label for="slton">Số lượng tồn</label>
@@ -104,17 +104,21 @@
 <%@ include file="/WEB-INF/jspf/delete-confirm.jspf" %>
 
 <script>
+    function genMa(prefix) {
+        return prefix + Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
+
     function datCheDoSanPham(dangSua) {
         document.getElementById("sanpham-form-title").textContent = dangSua ? "Cập nhật sản phẩm" : "Thêm sản phẩm";
         document.getElementById("sanpham-submit").textContent = dangSua ? "Lưu thay đổi" : "Thêm sản phẩm";
         document.getElementById("sanpham-action").value = dangSua ? "update" : "add";
         document.getElementById("sanpham-cancel").classList.toggle("is-hidden", !dangSua);
-        document.getElementById("masp").readOnly = dangSua;
+        document.getElementById("masp").readOnly = true;
     }
 
     function lamMoiSanPham() {
         document.getElementById("sanpham-form").reset();
-        document.getElementById("masp").value = "";
+        document.getElementById("masp").value = genMa("SP");
         document.getElementById("tensp").value = "";
         document.getElementById("gia").value = "";
         document.getElementById("nhacungcap").value = "";
@@ -130,6 +134,9 @@
         document.getElementById("slton").value = slton;
         datCheDoSanPham(true);
     }
+
+    // Auto-fill code on page load
+    document.getElementById("masp").value = genMa("SP");
 </script>
 </body>
 </html>

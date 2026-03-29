@@ -13,4 +13,6 @@ public interface IHoaDonService {
 	double tinhTongTien(String maHD);
 	List<HoaDon> getAll();
 	boolean xoaHoaDon(String maHD);
+	boolean capNhatHoaDon(String maHD, HoaDon hd);
+	boolean xoaChiTiet(String maHD, String maSP);
 }

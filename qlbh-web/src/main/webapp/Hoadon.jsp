@@ -57,40 +57,47 @@
             </section>
 
             <div class="stack">
-                <section class="card">
+                <section class="card" id="card-form-hoadon">
                 <div class="card-header">
                     <div>
-                        <h2>Tạo hóa đơn</h2>
+                        <h2 id="hoadon-form-title">Tạo hóa đơn</h2>
                     </div>
-                    <span class="card-badge">Hóa đơn mới</span>
+                    <div class="card-header-actions">
+                        <button class="btn btn-secondary btn-compact" type="button" onclick="lamMoiHoaDon()">Tạo mới</button>
+                        <span class="card-badge">Biểu mẫu</span>
+                    </div>
                 </div>
-                    <form action="hoadon" method="post">
+                    <form id="hoadon-form" action="hoadon" method="post">
+                        <input type="hidden" id="hoadon-action" name="action" value="add">
                         <div class="form-grid">
                             <div class="field">
-                                <label for="mahd">Mã hóa đơn</label>
-                                <input id="mahd" type="text" name="mahd" required>
+                                <label for="mahd">Mã hóa đơn <span class="auto-badge">Tự động</span></label>
+                                <input id="mahd" type="text" name="mahd" required readonly>
                             </div>
                             <div class="field">
                                 <label for="ngaylap">Ngày lập</label>
                                 <input id="ngaylap" type="datetime-local" name="ngaylap" required>
                             </div>
                             <div class="field">
-                                <label for="vat">VAT</label>
-                                <input id="vat" type="number" name="vat" min="0" step="0.01" required>
+                                <label for="vat">VAT (%)</label>
+                                <input id="vat" type="number" name="vat" min="0" max="100" step="0.01" required>
                             </div>
                             <div class="field">
-                                <label for="makh">Mã khách hàng</label>
-                                <input id="makh" type="text" name="makh" required>
+                                <label for="makh">Khách hàng</label>
+                                <select id="makh" name="makh" required>${dsKhachHangOpts}</select>
                             </div>
                         </div>
 
-                        <div class="dynamic-actions">
-                            <button class="btn btn-secondary" type="button" onclick="themCTHD()">Thêm chi tiết hóa đơn</button>
+                        <div id="cthoadon-section">
+                            <div class="dynamic-actions">
+                                <button class="btn btn-secondary" type="button" onclick="themCTHD()">+ Thêm chi tiết</button>
+                            </div>
+                            <div id="inputcthoadon" class="dynamic-list"></div>
                         </div>
-                        <div id="inputcthoadon" class="dynamic-list"></div>
 
                         <div class="actions">
-                            <button class="btn btn-primary" type="submit" name="action" value="add">Tạo hóa đơn</button>
+                            <button id="hoadon-submit" class="btn btn-primary" type="submit">Tạo hóa đơn</button>
+                            <button id="hoadon-cancel" class="btn btn-secondary is-hidden" type="button" onclick="lamMoiHoaDon()">Hủy chỉnh sửa</button>
                         </div>
                     </form>
                     <% if (request.getAttribute("message") != null && !String.valueOf(request.getAttribute("message")).isBlank()) { %>
@@ -145,20 +152,98 @@
     </div>
 </div>
 
+<div id="chiTietModal" class="modal" onclick="dongChiTiet(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <div>
+                <h2>Chi tiết hóa đơn: <span id="ct-modal-title"></span></h2>
+            </div>
+            <button class="modal-close" type="button" aria-label="Đóng" onclick="dongChiTiet()">&times;</button>
+        </div>
+        <div id="ct-modal-table" style="overflow-x:auto;margin-bottom:1rem"></div>
+        <% if (request.getAttribute("message") != null && !String.valueOf(request.getAttribute("message")).isBlank()
+                && request.getAttribute("activeChiTietInvoiceId") != null
+                && !String.valueOf(request.getAttribute("activeChiTietInvoiceId")).isBlank()) { %>
+            <div class="message warn">${message}</div>
+        <% } %>
+        <form action="hoadon" method="post">
+            <input type="hidden" name="action" value="addChiTiet">
+            <input type="hidden" id="ct-mahd-input" name="mahd">
+            <div class="form-grid">
+                <div class="field">
+                    <label for="ct-masp-select">Sản phẩm</label>
+                    <select id="ct-masp-select" name="masp" required></select>
+                </div>
+                <div class="field">
+                    <label for="ct-soluong-input">Số lượng</label>
+                    <input id="ct-soluong-input" type="number" name="soluong" min="1" required placeholder="Nhập SL">
+                </div>
+                <div class="field">
+                    <label for="ct-dongia-input">Đơn giá</label>
+                    <input id="ct-dongia-input" type="number" name="dongia" min="0" step="0.01" placeholder="Tự động">
+                </div>
+            </div>
+            <div class="actions">
+                <button class="btn btn-secondary" type="button" onclick="dongChiTiet()">Đóng</button>
+                <button class="btn btn-primary" type="submit">Thêm chi tiết</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script id="spData" type="application/json">${dsSPJson}</script>
+
 <script>
+    var dsSP = [];
+    try { dsSP = JSON.parse(document.getElementById('spData').textContent || '[]'); } catch(e) { dsSP = []; }
+
+    function genMa(prefix) {
+        return prefix + Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
+
+    function todayDatetime() {
+        var d = new Date();
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        return d.toISOString().slice(0, 16);
+    }
+
+    function datCheDoHoaDon(dangSua) {
+        document.getElementById("hoadon-form-title").textContent = dangSua ? "Cập nhật hóa đơn" : "Tạo hóa đơn";
+        document.getElementById("hoadon-submit").textContent = dangSua ? "Lưu thay đổi" : "Tạo hóa đơn";
+        document.getElementById("hoadon-action").value = dangSua ? "update" : "add";
+        document.getElementById("hoadon-cancel").classList.toggle("is-hidden", !dangSua);
+        document.getElementById("cthoadon-section").style.display = dangSua ? "none" : "";
+    }
+
+    function lamMoiHoaDon() {
+        document.getElementById("hoadon-form").reset();
+        document.getElementById("mahd").value = genMa("HD");
+        document.getElementById("ngaylap").value = todayDatetime();
+        document.getElementById("vat").value = "10";
+        document.getElementById("inputcthoadon").innerHTML = "";
+        datCheDoHoaDon(false);
+    }
+
+    function chinhSuaHoaDon(mahd, ngaylap, vat, makh) {
+        document.getElementById("mahd").value = mahd;
+        document.getElementById("ngaylap").value = ngaylap + "T00:00";
+        var displayVat = parseFloat(vat);
+        if (displayVat > 0 && displayVat <= 1) displayVat = Math.round(displayVat * 100);
+        document.getElementById("vat").value = displayVat;
+        document.getElementById("makh").value = makh;
+        datCheDoHoaDon(true);
+        document.getElementById("card-form-hoadon").scrollIntoView({ behavior: 'smooth' });
+    }
+
     function xemCT(mahd) {
         var hd = document.getElementById(mahd);
         var toggle = document.getElementById("toggle-" + mahd);
         if (hd.classList.contains("hide")) {
             hd.classList.remove("hide");
-            if (toggle) {
-                toggle.classList.add("is-open");
-            }
+            if (toggle) toggle.classList.add("is-open");
         } else {
             hd.classList.add("hide");
-            if (toggle) {
-                toggle.classList.remove("is-open");
-            }
+            if (toggle) toggle.classList.remove("is-open");
         }
     }
 
@@ -168,60 +253,182 @@
     }
 
     function dongKhuyenMai(event) {
-        if (event && event.target && event.target.id !== "khuyenMaiModal") {
-            return;
-        }
+        if (event && event.target && event.target.id !== "khuyenMaiModal") return;
         document.getElementById("khuyenMaiModal").classList.remove("active");
     }
 
     function themCTHD() {
         var container = document.getElementById("inputcthoadon");
-
-        const div = document.createElement("div");
+        var div = document.createElement("div");
         div.className = "rowct";
 
-        const maspinput = document.createElement("input");
-        maspinput.type = "text";
-        maspinput.name = "masp[]";
-        maspinput.required = true;
-        maspinput.placeholder = "Mã sản phẩm";
+        // SP select field
+        var spField = document.createElement("div");
+        spField.className = "field";
+        var spLabel = document.createElement("label");
+        spLabel.textContent = "Sản phẩm";
+        var spSelect = document.createElement("select");
+        spSelect.name = "masp[]";
+        spSelect.required = true;
 
-        const slinput = document.createElement("input");
-        slinput.type = "text";
-        slinput.name = "soluong[]";
-        slinput.placeholder = "Số lượng";
-        slinput.required = true;
-        slinput.inputMode = "numeric";
-        slinput.pattern = "\\d*";
+        // SL field
+        var slField = document.createElement("div");
+        slField.className = "field";
+        var slLabel = document.createElement("label");
+        slLabel.textContent = "Số lượng";
+        var slInput = document.createElement("input");
+        slInput.type = "number";
+        slInput.name = "soluong[]";
+        slInput.required = true;
+        slInput.min = "1";
+        slInput.placeholder = "Nhập SL";
 
-        const dginput = document.createElement("input");
-        dginput.type = "number";
-        dginput.name = "dongia[]";
-        dginput.placeholder = "Đơn giá";
-        dginput.required = true;
-        dginput.min = "0";
-        dginput.step = "0.01";
+        // DG field (defined before SP listener so closure captures it)
+        var dgField = document.createElement("div");
+        dgField.className = "field";
+        var dgLabel = document.createElement("label");
+        dgLabel.textContent = "Đơn giá";
+        var dgInput = document.createElement("input");
+        dgInput.type = "number";
+        dgInput.name = "dongia[]";
+        dgInput.required = true;
+        dgInput.min = "0";
+        dgInput.step = "0.01";
+        dgInput.placeholder = "Tự động";
 
-        const removeBtn = document.createElement("button");
+        // Populate SP select
+        var defaultOpt = document.createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "-- Chọn sản phẩm --";
+        spSelect.appendChild(defaultOpt);
+        dsSP.forEach(function(sp) {
+            var opt = document.createElement("option");
+            var ma = sp.maSP || sp.MaSP || "";
+            var ten = sp.tenSP || sp.TenSP || "";
+            var gia = sp.gia || sp.Gia || 0;
+            var ton = sp.soLuongTon || sp.SoLuongTon || 0;
+            opt.value = ma;
+            opt.textContent = ma + " - " + ten + " (Giá: " + gia + ", Tồn: " + ton + ")";
+            opt.dataset.gia = gia;
+            spSelect.appendChild(opt);
+        });
+
+        // Auto-fill dongia when SP is selected
+        spSelect.addEventListener("change", function() {
+            var sel = this.options[this.selectedIndex];
+            if (sel && sel.dataset.gia) dgInput.value = sel.dataset.gia;
+        });
+
+        // Assemble fields
+        spField.appendChild(spLabel);
+        spField.appendChild(spSelect);
+        slField.appendChild(slLabel);
+        slField.appendChild(slInput);
+        dgField.appendChild(dgLabel);
+        dgField.appendChild(dgInput);
+
+        // Remove button
+        var removeBtn = document.createElement("button");
         removeBtn.type = "button";
-        removeBtn.className = "btn btn-secondary";
-        removeBtn.innerText = "Bỏ";
+        removeBtn.className = "btn btn-secondary btn-compact";
+        removeBtn.textContent = "Bỏ";
+        removeBtn.onclick = function() { container.removeChild(div); };
 
-        removeBtn.onclick = function () {
-            container.removeChild(div);
-        };
-
-        div.appendChild(maspinput);
-        div.appendChild(slinput);
-        div.appendChild(dginput);
+        div.appendChild(spField);
+        div.appendChild(slField);
+        div.appendChild(dgField);
         div.appendChild(removeBtn);
-
         container.appendChild(div);
     }
+
+    // Initialize form on page load
+    (function() {
+        document.getElementById("mahd").value = genMa("HD");
+        document.getElementById("ngaylap").value = todayDatetime();
+        document.getElementById("vat").value = "10";
+    })();
 
     <% if (request.getAttribute("activePromotionInvoiceId") != null && !String.valueOf(request.getAttribute("activePromotionInvoiceId")).isBlank()) { %>
     moKhuyenMai("<%= String.valueOf(request.getAttribute("activePromotionInvoiceId")).replace("\\", "\\\\").replace("\"", "\\\"") %>");
     <% } %>
+
+    <% if (request.getAttribute("activeChiTietInvoiceId") != null && !String.valueOf(request.getAttribute("activeChiTietInvoiceId")).isBlank()) { %>
+    moSuaChiTiet("<%= String.valueOf(request.getAttribute("activeChiTietInvoiceId")).replace("\\", "\\\\").replace("\"", "\\\"") %>");
+    <% } %>
+
+    // --- Chi tiet modal functions ---
+    var _ctModalMaHD = "";
+
+    function escHtml(s) {
+        return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    function moSuaChiTiet(mahd) {
+        _ctModalMaHD = mahd;
+        var el = document.getElementById("ct-json-" + mahd);
+        var chiTiets = [];
+        try { chiTiets = JSON.parse(el ? el.textContent : "[]"); } catch(e) {}
+
+        document.getElementById("ct-modal-title").textContent = mahd;
+        document.getElementById("ct-mahd-input").value = mahd;
+
+        // Populate product select in add form
+        var spSel = document.getElementById("ct-masp-select");
+        spSel.innerHTML = "<option value=''>-- Chọn sản phẩm --</option>";
+        dsSP.forEach(function(sp) {
+            var ma = sp.maSP || sp.MaSP || "";
+            var ten = sp.tenSP || sp.TenSP || "";
+            var gia = sp.gia || sp.Gia || 0;
+            var ton = sp.soLuongTon || sp.SoLuongTon || 0;
+            var opt = document.createElement("option");
+            opt.value = ma;
+            opt.textContent = ma + " - " + ten + " (Tồn: " + ton + ")";
+            opt.dataset.gia = gia;
+            spSel.appendChild(opt);
+        });
+        spSel.onchange = function() {
+            var sel = this.options[this.selectedIndex];
+            if (sel && sel.dataset.gia) document.getElementById("ct-dongia-input").value = sel.dataset.gia;
+        };
+
+        renderChiTietModal(mahd, chiTiets);
+        document.getElementById("chiTietModal").classList.add("active");
+    }
+
+    function renderChiTietModal(mahd, chiTiets) {
+        var container = document.getElementById("ct-modal-table");
+        if (!chiTiets || chiTiets.length === 0) {
+            container.innerHTML = "<p style='margin:0.5rem 0;color:var(--text-muted,#888)'>Chưa có chi tiết hóa đơn.</p>";
+            return;
+        }
+        var html = "<table><thead><tr><th>Mã SP</th><th>Sản phẩm</th><th>Số lượng</th><th>Đơn giá</th><th></th></tr></thead><tbody>";
+        chiTiets.forEach(function(ct) {
+            var maSP = ct.maSP || ct.MaSP || "";
+            var sp = ct.sanPham || ct.SanPham || {};
+            var tenSP = sp.tenSP || sp.TenSP || "";
+            var sl = ct.soLuong || ct.SoLuong || 0;
+            var dg = ct.donGia || ct.DonGia || 0;
+            html += "<tr>";
+            html += "<td>" + escHtml(maSP) + "</td>";
+            html += "<td>" + escHtml(tenSP) + "</td>";
+            html += "<td>" + sl + "</td>";
+            html += "<td>" + dg + "</td>";
+            html += "<td><form action='hoadon' method='post' style='display:inline'>" +
+                    "<input type='hidden' name='action' value='deleteChiTiet'>" +
+                    "<input type='hidden' name='mahd' value='" + escHtml(mahd) + "'>" +
+                    "<input type='hidden' name='masp' value='" + escHtml(maSP) + "'>" +
+                    "<button class='btn btn-secondary btn-compact' type='submit' onclick=\"return confirm('Xóa chi tiết này?')\">Xóa</button>" +
+                    "</form></td>";
+            html += "</tr>";
+        });
+        html += "</tbody></table>";
+        container.innerHTML = html;
+    }
+
+    function dongChiTiet(event) {
+        if (event && event.target.id !== "chiTietModal") return;
+        document.getElementById("chiTietModal").classList.remove("active");
+    }
 </script>
 </body>
 </html>

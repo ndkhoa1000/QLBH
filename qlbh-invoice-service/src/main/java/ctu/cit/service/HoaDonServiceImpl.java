@@ -225,6 +225,72 @@ public class HoaDonServiceImpl implements IHoaDonService {
         return null;
     }
 
+    @Override
+    public boolean capNhatHoaDon(String maHD, HoaDon hd) {
+        String sql = "UPDATE hoadon SET ngaylap = ?, vat = ?, makh = ? WHERE mahd = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setDate(1, Date.valueOf(hd.getNgayLap()));
+            ps.setDouble(2, hd.getVAT());
+            ps.setString(3, hd.getKhachHang() != null ? hd.getKhachHang().getMaKH() : null);
+            ps.setString(4, maHD);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    @Override
+    public boolean xoaChiTiet(String maHD, String maSP) {
+        Connection conn = null;
+        try {
+            conn = DatabaseUtil.getConnection();
+            conn.setAutoCommit(false);
+
+            // Get current soLuong to restore stock
+            int soLuong = 0;
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "SELECT soluong FROM chitiethd WHERE mahd = ? AND masp = ?")) {
+                ps.setString(1, maHD);
+                ps.setString(2, maSP);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        soLuong = rs.getInt("soluong");
+                    } else {
+                        conn.rollback();
+                        return false;
+                    }
+                }
+            }
+
+            // Restore stock
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "UPDATE sanpham SET soluongton = soluongton + ? WHERE masp = ?")) {
+                ps.setInt(1, soLuong);
+                ps.setString(2, maSP);
+                ps.executeUpdate();
+            }
+
+            // Delete chi tiet
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM chitiethd WHERE mahd = ? AND masp = ?")) {
+                ps.setString(1, maHD);
+                ps.setString(2, maSP);
+                ps.executeUpdate();
+            }
+
+            conn.commit();
+            return true;
+        } catch (SQLException e) {
+            if (conn != null) try { conn.rollback(); } catch (SQLException ex) { ex.printStackTrace(); }
+            e.printStackTrace();
+            return false;
+        } finally {
+            if (conn != null) try { conn.close(); } catch (SQLException e) { e.printStackTrace(); }
+        }
+    }
+
     private void loadDetails(HoaDon hd) throws SQLException {
         String sql = "SELECT c.*, s.tensp, s.gia as sp_gia, s.mancc FROM chitiethd c " +
                      "JOIN sanpham s ON c.masp = s.masp WHERE c.mahd = ?";

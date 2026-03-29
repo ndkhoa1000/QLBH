@@ -78,6 +78,11 @@ public class HoaDonServlet extends HttpServlet {
         return fallback;
     }
 
+    private String htmlEsc(String v) {
+        if (v == null) return "";
+        return v.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
+    }
+
     private double normalizePercentValue(double value) {
         if (value > 1 && value <= 100) {
             return value / 100;
@@ -127,6 +132,7 @@ public class HoaDonServlet extends HttpServlet {
         String message = "";
         String messagekm = "";
         String activePromotionInvoiceId = "";
+        String activeChiTietInvoiceId = "";
 
 
         // ========= thao tac form=================
@@ -223,6 +229,38 @@ public class HoaDonServlet extends HttpServlet {
                         message = buildClientErrorMessage("Khong xoa duoc hoa don.", e);
                     }
                 }
+            } else if ("update".equals(action)) {
+                try {
+                    HoaDon hd = new HoaDon();
+                    String maHD = request.getParameter("mahd");
+                    hd.setMaHD(maHD);
+                    String ngayLap = request.getParameter("ngaylap");
+                    if (ngayLap != null && !ngayLap.isBlank()) {
+                        hd.setNgayLap(LocalDate.parse(ngayLap.substring(0, 10)));
+                    }
+                    String vat = request.getParameter("vat");
+                    if (vat != null && !vat.isBlank()) {
+                        hd.setVAT(normalizePercentValue(Double.parseDouble(vat)));
+                    }
+                    String maKH = request.getParameter("makh");
+                    if (maKH != null && !maKH.isBlank()) {
+                        KhachHang khachHang = null;
+                        for (KhachHang kh : dsKhachHang) {
+                            if (maKH.equals(kh.getMaKH())) { khachHang = kh; break; }
+                        }
+                        if (khachHang == null) { khachHang = new KhachHang(); khachHang.setMaKH(maKH); }
+                        hd.setKhachHang(khachHang);
+                    }
+                    message = invoiceTarget.path(maHD)
+                            .request(MediaType.TEXT_PLAIN)
+                            .put(Entity.entity(hd, MediaType.APPLICATION_JSON), String.class);
+                } catch (NumberFormatException | DateTimeParseException e) {
+                    LOGGER.log(Level.WARNING, "Invalid invoice update data", e);
+                    message = "Du lieu hoa don khong hop le.";
+                } catch (ProcessingException | WebApplicationException e) {
+                    LOGGER.log(Level.WARNING, "Failed to update invoice", e);
+                    message = buildClientErrorMessage("Khong cap nhat duoc hoa don.", e);
+                }
             } else if ("aplkm".equals(action)) {
                 String maHD = request.getParameter("mahdkm");
                 String maKM = request.getParameter("makmchohd");
@@ -253,6 +291,52 @@ public class HoaDonServlet extends HttpServlet {
                 } else {
                     messagekm = "Khong hop le";
                 }
+            } else if ("addChiTiet".equals(action)) {
+                String maHDct = request.getParameter("mahd");
+                String maSPct = request.getParameter("masp");
+                String soLuongStr = request.getParameter("soluong");
+                String donGiaStr = request.getParameter("dongia");
+                activeChiTietInvoiceId = maHDct != null ? maHDct : "";
+                if (maHDct != null && !maHDct.isBlank() && maSPct != null && !maSPct.isBlank()
+                        && soLuongStr != null && !soLuongStr.isBlank()) {
+                    try {
+                        ChiTietHD ct = new ChiTietHD();
+                        ct.setMaSP(maSPct);
+                        ct.setSoLuong(Integer.parseInt(soLuongStr));
+                        if (donGiaStr != null && !donGiaStr.isBlank()) {
+                            ct.setDonGia(Double.parseDouble(donGiaStr));
+                        } else {
+                            for (SanPham sp : dsSP) {
+                                if (maSPct.equals(sp.getMaSP())) { ct.setDonGia(sp.getGia()); break; }
+                            }
+                        }
+                        message = invoiceTarget.path(maHDct).path("muahang")
+                                .request(MediaType.TEXT_PLAIN)
+                                .post(Entity.entity(ct, MediaType.APPLICATION_JSON), String.class);
+                    } catch (NumberFormatException e) {
+                        LOGGER.log(Level.WARNING, "Invalid addChiTiet data", e);
+                        message = "So luong hoac don gia khong hop le.";
+                    } catch (ProcessingException | WebApplicationException e) {
+                        LOGGER.log(Level.WARNING, "Failed to add chi tiet", e);
+                        message = buildClientErrorMessage("Khong them duoc chi tiet.", e);
+                    }
+                } else {
+                    message = "Du lieu chi tiet khong hop le.";
+                }
+            } else if ("deleteChiTiet".equals(action)) {
+                String maHDct = request.getParameter("mahd");
+                String maSPct = request.getParameter("masp");
+                activeChiTietInvoiceId = maHDct != null ? maHDct : "";
+                if (maHDct != null && !maHDct.isBlank() && maSPct != null && !maSPct.isBlank()) {
+                    try {
+                        message = invoiceTarget.path(maHDct).path("chitiet").path(maSPct)
+                                .request(MediaType.TEXT_PLAIN)
+                                .delete(String.class);
+                    } catch (ProcessingException | WebApplicationException e) {
+                        LOGGER.log(Level.WARNING, "Failed to delete chi tiet", e);
+                        message = buildClientErrorMessage("Khong xoa duoc chi tiet.", e);
+                    }
+                }
             }
         }
 
@@ -271,6 +355,11 @@ public class HoaDonServlet extends HttpServlet {
 
 
 
+        // Shared JSON mapper
+        ObjectMapper jsonMapper = new ObjectMapper()
+                .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
         // ======== in bang hoa don =============
         StringBuilder inDS = new StringBuilder();
         for (HoaDon hd : dsHD) {
@@ -283,12 +372,20 @@ public class HoaDonServlet extends HttpServlet {
             inDS.append("<td>").append(hd.getVAT()).append("</td>");
             inDS.append("<td>").append(maKhText).append("</td>");
             inDS.append("<td>").append(hd.tinhTongTien()).append("</td>");
-            inDS.append("<td><div class='table-actions'><a class='table-action table-action-danger' onclick=\"return moXacNhanXoa(this.href, 'B\\u1ea1n c\\u00f3 ch\\u1eafc mu\\u1ed1n x\\u00f3a h\\u00f3a \\u0111\\u01a1n n\\u00e0y?');\" href='hoadon?action=delete&mahd=")
+            inDS.append("<td><div class='table-actions'>");
+            inDS.append("<button class='table-inline-button' type='button' onclick=\"chinhSuaHoaDon('")
+                    .append(escapeJs(hd.getMaHD())).append("','").append(escapeJs(ngayLapText)).append("',")
+                    .append(hd.getVAT()).append(",'")
+                    .append(escapeJs(maKhText)).append("')\">Sửa</button>");
+            inDS.append("<a class='table-action table-action-danger' onclick=\"return moXacNhanXoa(this.href, 'B\\u1ea1n c\\u00f3 ch\\u1eafc mu\\u1ed1n x\\u00f3a h\\u00f3a \\u0111\\u01a1n n\\u00e0y?');\" href='hoadon?action=delete&mahd=")
                     .append(hd.getMaHD())
                     .append("'>Xóa</a>");
             inDS.append("<button class='table-inline-button table-inline-button-accent' type='button' onclick=\"moKhuyenMai('")
                     .append(escapeJs(hd.getMaHD()))
-                    .append("')\">Khuyến mãi</button></div></td>");
+                    .append("')\">Khuyến mãi</button>");
+            inDS.append("<button class='table-inline-button table-inline-button-info' type='button' onclick=\"moSuaChiTiet('")
+                    .append(escapeJs(hd.getMaHD()))
+                    .append("')\">Sửa chi tiết</button></div></td>");
             inDS.append("<td><button class='table-inline-button table-inline-button-toggle' id='toggle-")
                     .append(hd.getMaHD())
                     .append("' aria-label='Xem chi tiết' type='button' onclick=\"xemCT('")
@@ -323,6 +420,12 @@ public class HoaDonServlet extends HttpServlet {
             inDS.append("</table>");
             inDS.append("</td>");
             inDS.append("</tr>");
+
+            // Embed chi tiet JSON for the modal
+            String ctJsonData = "[]";
+            try { ctJsonData = jsonMapper.writeValueAsString(dsCT).replace("</", "<\\/"); } catch (Exception ctEx) { /* ignored */ }
+            inDS.append("<script type='application/json' id='ct-json-")
+                    .append(htmlEsc(hd.getMaHD())).append("'>").append(ctJsonData).append("</script>");
         }
         if (inDS.length() == 0) {
             inDS.append("<tr class='table-empty'><td colspan='7'>Chưa có hóa đơn nào.</td></tr>");
@@ -331,6 +434,28 @@ public class HoaDonServlet extends HttpServlet {
         request.setAttribute("message", message);
         request.setAttribute("messagekm", messagekm);
         request.setAttribute("activePromotionInvoiceId", safe(activePromotionInvoiceId));
+        request.setAttribute("activeChiTietInvoiceId", safe(activeChiTietInvoiceId));
+
+        // Build KH dropdown options
+        StringBuilder dsKHOpts = new StringBuilder();
+        dsKHOpts.append("<option value=''>-- Chọn khách hàng --</option>");
+        for (KhachHang kh : dsKhachHang) {
+            if (kh == null) continue;
+            String ma = safe(kh.getMaKH());
+            String ten = safe(kh.getHoTen());
+            dsKHOpts.append("<option value='").append(htmlEsc(ma)).append("'>").append(htmlEsc(ma)).append(" - ").append(htmlEsc(ten)).append("</option>");
+        }
+        request.setAttribute("dsKhachHangOpts", dsKHOpts.toString());
+
+        // Serialize product list for JS dropdown in dynamic CT rows
+        try {
+
+            request.setAttribute("dsSPJson", jsonMapper.writeValueAsString(dsSP).replace("</", "<\\/"));
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to serialize product list", e);
+            request.setAttribute("dsSPJson", "[]");
+        }
+
         request.getRequestDispatcher("Hoadon.jsp").forward(request, response);
         client.close();
     }

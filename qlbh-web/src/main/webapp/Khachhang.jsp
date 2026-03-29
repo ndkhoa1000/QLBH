@@ -68,8 +68,8 @@
                     <input id="khachhang-action" type="hidden" name="action" value="add">
                     <div class="form-grid">
                         <div class="field">
-                            <label for="makh">Mã khách hàng</label>
-                            <input id="makh" type="text" name="makh" required>
+                            <label for="makh">Mã khách hàng <span class="auto-badge">Tự động</span></label>
+                            <input id="makh" type="text" name="makh" required readonly>
                         </div>
                         <div class="field">
                             <label for="tenkh">Họ tên</label>
@@ -99,17 +99,21 @@
 <%@ include file="/WEB-INF/jspf/delete-confirm.jspf" %>
 
 <script>
+    function genMa(prefix) {
+        return prefix + Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
+
     function datCheDoKhachHang(dangSua) {
         document.getElementById("khachhang-form-title").textContent = dangSua ? "Cập nhật khách hàng" : "Thêm khách hàng";
         document.getElementById("khachhang-submit").textContent = dangSua ? "Lưu thay đổi" : "Thêm khách hàng";
         document.getElementById("khachhang-action").value = dangSua ? "update" : "add";
         document.getElementById("khachhang-cancel").classList.toggle("is-hidden", !dangSua);
-        document.getElementById("makh").readOnly = dangSua;
+        document.getElementById("makh").readOnly = true;
     }
 
     function lamMoiKhachHang() {
         document.getElementById("khachhang-form").reset();
-        document.getElementById("makh").value = "";
+        document.getElementById("makh").value = genMa("KH");
         document.getElementById("tenkh").value = "";
         document.getElementById("dc").value = "";
         document.getElementById("cccd").value = "";
@@ -123,6 +127,9 @@
         document.getElementById("cccd").value = cccd;
         datCheDoKhachHang(true);
     }
+
+    // Auto-fill code on page load
+    document.getElementById("makh").value = genMa("KH");
 </script>
 </body>
 </html>
