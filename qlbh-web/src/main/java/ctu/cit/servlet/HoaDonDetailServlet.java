@@ -164,9 +164,10 @@ public class HoaDonDetailServlet extends HttpServlet {
             StringBuilder spOpts = new StringBuilder("<option value=''>-- Ch\u1ecdn s\u1ea3n ph\u1ea9m --</option>");
             for (SanPham sp : dsSP) {
                 spOpts.append("<option value='").append(htmlEsc(safe(sp.getMaSP()))).append("'")
-                      .append(" data-gia='").append(sp.getGia()).append("'>")
-                      .append(htmlEsc(safe(sp.getMaSP()))).append(" - ").append(htmlEsc(safe(sp.getTenSP())))
-                      .append(" (").append(String.format("%,.0f", sp.getGia())).append(")</option>");
+                      .append(" data-gia='").append(sp.getGia()).append("'")
+                      .append(" data-ton='").append(sp.getSoLuongTon()).append("'>")
+                      .append(htmlEsc(safe(sp.getTenSP()))).append(" — ").append(String.format("%,.0f", sp.getGia())).append("\u20ab")
+                      .append(" (t\u1ed3n: ").append(sp.getSoLuongTon()).append(")</option>");
             }
 
             double vatRate = hd.getVAT() > 1 ? hd.getVAT() / 100.0 : hd.getVAT();

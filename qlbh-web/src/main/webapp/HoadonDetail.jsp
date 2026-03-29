@@ -14,76 +14,73 @@
     String ngayLap = hd.getNgayLap() != null ? hd.getNgayLap().toString() : "—";
     double vatDisp = hd.getVAT() > 0 && hd.getVAT() <= 1
             ? Math.round(hd.getVAT() * 100) : hd.getVAT();
-    String khInfo  = hd.getKhachHang() != null
-            ? hd.getKhachHang().getMaKH()
-              + (hd.getKhachHang().getHoTen() != null ? " – " + hd.getKhachHang().getHoTen() : "")
+    String khTen   = hd.getKhachHang() != null
+            ? (hd.getKhachHang().getHoTen() != null ? hd.getKhachHang().getHoTen() : hd.getKhachHang().getMaKH())
             : "—";
-    String kmInfo  = hd.getKhuyenMai() != null ? hd.getKhuyenMai().getMaKM() : "Không";
+    String khMa    = hd.getKhachHang() != null ? hd.getKhachHang().getMaKH() : "";
+    String kmInfo  = hd.getKhuyenMai() != null ? hd.getKhuyenMai().getMaKM() : "Không áp dụng";
 %>
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Chi tiết hóa đơn <%= maHDVal %></title>
+    <title>Chi tiết HĐ <%= maHDVal %></title>
     <link rel="stylesheet" href="<%= request.getContextPath() %>/assets/css/app.css">
     <style>
-        /* ── print ── */
+        /* ── print ──────────────────────────────── */
         @media print {
             .no-print { display: none !important; }
             .topbar   { display: none !important; }
             body      { background: #fff; }
-            .card     { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
-            .print-header { display: block !important; }
+            .shell    { display: block; }
+            .card     { box-shadow: none; border: 1px solid #ddd; page-break-inside: avoid; }
+            .print-banner { display: block !important; }
+            .split-layout { display: block !important; }
         }
-        .print-header { display: none; }
+        .print-banner { display: none; }
 
-        /* ── detail meta grid ── */
-        .meta-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: .5rem 1.5rem;
-            margin: .75rem 0 1rem;
-        }
-        .meta-grid dt {
+        /* ── meta rows ───────────────────────────── */
+        .meta-rows { display: flex; flex-direction: column; gap: .45rem; margin: .8rem 0 .25rem; padding-left: 0.5rem;}
+        .meta-row  { display: flex; align-items: baseline; gap: .5rem; font-size: .9rem; }
+        .meta-row .lbl {
+            flex: 0 0 110px;
             font-size: .72rem;
             text-transform: uppercase;
             letter-spacing: .05em;
             color: #9ca3af;
-            margin: 0;
         }
-        .meta-grid dd {
-            font-weight: 600;
-            font-size: .95rem;
-            margin: .1rem 0 0;
-        }
+        .meta-row .val { font-weight: 600; color: #111827; }
 
-        /* ── totals ── */
-        .totals {
-            margin-left: auto;
-            max-width: 340px;
-            border-collapse: collapse;
-            width: 100%;
-        }
-        .totals td { padding: .3rem .5rem; }
-        .totals .lbl { text-align: right; color: #6b7280; font-size: .9rem; }
-        .totals .val { text-align: right; font-weight: 600; }
-        .totals .grand td {
+        /* ── totals table ────────────────────────── */
+        .totals-wrap { padding: 1rem 1rem .5rem; border-top: 1px solid #f3f4f6; margin-top: .5rem; }
+        .totals-tbl  { width: 100%; border-collapse: collapse; }
+        .totals-tbl td { padding: .28rem .4rem; }
+        .totals-tbl .lbl { color: #6b7280; font-size: .88rem; }
+        .totals-tbl .val { text-align: right; font-weight: 600; font-size: .9rem; white-space: nowrap; }
+        .totals-tbl .grand td {
             border-top: 2px solid #374151;
-            font-size: 1.05rem;
             padding-top: .5rem;
+            font-size: 1rem;
         }
 
-        /* ── right-align numeric cols ── */
-        .num { text-align: right; }
-
-        /* ── back link ── */
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: .35rem;
-            font-size: .88rem;
+        /* ── stock badge ─────────────────────────── */
+        .stock-hint {
+            display: inline-block;
+            font-size: .75rem;
             color: #6b7280;
-            text-decoration: none;
+            margin-top: .25rem;
+            min-height: 1rem;
+        }
+        .stock-hint.low  { color: #dc2626; font-weight: 600; }
+        .stock-hint.ok   { color: #16a34a; }
+
+        /* ── table numerics ──────────────────────── */
+        th.num, td.num { text-align: right; }
+
+        /* ── back link ───────────────────────────── */
+        .back-link {
+            display: inline-flex; align-items: center; gap: .3rem;
+            color: #6b7280; font-size: .88rem; text-decoration: none;
             margin-bottom: 1rem;
         }
         .back-link:hover { color: #111827; }
@@ -95,10 +92,10 @@
 
     <section class="content">
 
-        <!-- print-only title block -->
-        <div class="print-header" style="text-align:center;margin-bottom:1.5rem">
+        <!-- ── printer-only title ── -->
+        <div class="print-banner" style="text-align:center;margin-bottom:1.5rem">
             <h2 style="margin:0">HÓA ĐƠN BÁN HÀNG</h2>
-            <p style="margin:.3rem 0 0;color:#555">Mã: <%= maHDVal %> &nbsp;&bull;&nbsp; Ngày: <%= ngayLap %></p>
+            <p style="margin:.3rem 0 0;color:#555">Mã: <%= maHDVal %> &bull; Ngày: <%= ngayLap %></p>
         </div>
 
         <a class="back-link no-print" href="<%= request.getContextPath() %>/hoadon">&#8592; Quay lại danh sách</a>
@@ -109,57 +106,27 @@
 
         <div class="split-layout">
 
-            <!-- ── LEFT: add-product form ── -->
-            <div class="stack no-print">
-                <!-- Invoice header info -->
+            <!-- ════════════════ LEFT COLUMN ════════════════ -->
+            <div class="stack">
+
+                <!-- Invoice header card -->
                 <section class="card">
                     <div class="card-header">
                         <div>
-                            <h2>Hóa đơn</h2>
-                            <p style="margin:.25rem 0 0;font-size:.82rem;color:#9ca3af"><%= maHDVal %></p>
+                            <h2 style="margin:0">Hóa đơn <%= maHDVal %></h2>
                         </div>
-                        <button class="btn btn-secondary btn-compact" onclick="window.print()">&#128438; In</button>
+                        <button class="btn btn-secondary btn-compact no-print" onclick="window.print()">&#128438; In hóa đơn</button>
                     </div>
-                    <dl class="meta-grid">
-                        <div><dt>Ngày lập</dt><dd><%= ngayLap %></dd></div>
-                        <div><dt>VAT</dt><dd><%= vatDisp %>%</dd></div>
-                        <div><dt>Khách hàng</dt><dd><%= khInfo %></dd></div>
-                        <div><dt>Khuyến mãi</dt><dd><%= kmInfo %></dd></div>
-                    </dl>
+                    <div class="meta-rows">
+                        <div class="meta-row"><span class="lbl">Ngày lập</span><span class="val"><%= ngayLap %></span></div>
+                        <div class="meta-row"><span class="lbl">VAT</span><span class="val"><%= vatDisp %>%</span></div>
+                        <div class="meta-row"><span class="lbl">Khách hàng</span><span class="val"><%= khTen %><% if (!khMa.isEmpty()) { %> <small style="color:#9ca3af;font-weight:400">(<%= khMa %>)</small><% } %></span></div>
+                        <div class="meta-row"><span class="lbl">Khuyến mãi</span><span class="val"><%= kmInfo %></span></div>
+                    </div>
                 </section>
 
-                <!-- Add product form -->
-                <section class="card">
-                    <div class="card-header">
-                        <div><h2>Thêm sản phẩm</h2></div>
-                        <span class="card-badge">Chi tiết</span>
-                    </div>
-                    <form action="hoadon-detail" method="post">
-                        <input type="hidden" name="mahd" value="<%= maHDVal %>">
-                        <input type="hidden" name="action" value="addChiTiet">
-                        <div class="form-grid">
-                            <div class="field">
-                                <label for="ct-masp">Sản phẩm</label>
-                                <select id="ct-masp" name="masp" required onchange="autoFillGia(this)">${spOpts}</select>
-                            </div>
-                            <div class="field">
-                                <label for="ct-soluong">Số lượng</label>
-                                <input id="ct-soluong" name="soluong" type="number" min="1" required value="1">
-                            </div>
-                            <div class="field">
-                                <label for="ct-dongia">Đơn giá (tự động)</label>
-                                <input id="ct-dongia" name="dongia" type="number" min="0" step="0.01" placeholder="Lấy từ danh mục">
-                            </div>
-                        </div>
-                        <div class="actions">
-                            <button class="btn btn-primary" type="submit">Thêm vào hóa đơn</button>
-                        </div>
-                    </form>
-                </section>
-            </div>
-
-            <!-- ── RIGHT: chi tiet table ── -->
-            <section class="card">
+                        <!-- List products -->
+                             <section class="card">
                 <div class="card-header">
                     <div><h2>Danh sách sản phẩm</h2></div>
                     <span class="card-badge">Chi tiết hóa đơn</span>
@@ -173,45 +140,106 @@
                             <th class="num">SL</th>
                             <th class="num">Đơn giá</th>
                             <th class="num">Thành tiền</th>
-                            <th class="no-print" style="width:56px"></th>
+                            <th class="no-print" style="width:60px"></th>
                         </tr>
                         </thead>
                         <tbody>${chiTietRows}</tbody>
                     </table>
                 </div>
-
-                <!-- Totals block -->
-                <div style="padding:.75rem 1rem 1rem">
-                    <table class="totals">
-                        <tr>
-                            <td class="lbl">Tạm tính</td>
-                            <td class="val">${subtotal}&thinsp;₫</td>
-                        </tr>
-                        <tr>
-                            <td class="lbl">VAT (<%= vatDisp %>%)</td>
-                            <td class="val">${vatAmt}&thinsp;₫</td>
-                        </tr>
-                        <tr>
-                            <td class="lbl">Giảm KM</td>
-                            <td class="val">−${discAmt}&thinsp;₫</td>
-                        </tr>
-                        <tr class="grand">
-                            <td class="lbl"><strong>Tổng cộng</strong></td>
-                            <td class="val"><strong>${total}&thinsp;₫</strong></td>
-                        </tr>
-                    </table>
-                </div>
             </section>
+                            <!-- Totals card -->
+                <section class="card">
+                    <div class="card-header">
+                        <div><h2>Tổng tiền</h2></div>
+                        <span class="card-badge">Thanh toán</span>
+                    </div>
+                    <div class="totals-wrap">
+                        <table class="totals-tbl">
+                            <tr>
+                                <td class="lbl">Tạm tính</td>
+                                <td class="val">${subtotal}&thinsp;₫</td>
+                            </tr>
+                            <tr>
+                                <td class="lbl">VAT (<%= vatDisp %>%)</td>
+                                <td class="val">+ ${vatAmt}&thinsp;₫</td>
+                            </tr>
+                            <tr>
+                                <td class="lbl">Giảm khuyến mãi</td>
+                                <td class="val">− ${discAmt}&thinsp;₫</td>
+                            </tr>
+                            <tr class="grand">
+                                <td class="lbl"><strong>Tổng cộng</strong></td>
+                                <td class="val"><strong>${total}&thinsp;₫</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                </section>
+            </div><!-- /LEFT -->
+
+            <!-- ════════════════ RIGHT COLUMN ════════════════ -->
+                             <!-- Add product form -->
+                             <section class="card no-print">
+                    <div class="card-header">
+                        <div><h2>Thêm sản phẩm</h2></div>
+                        <span class="card-badge">Chi tiết</span>
+                    </div>
+                    <form action="hoadon-detail" method="post">
+                        <input type="hidden" name="mahd" value="<%= maHDVal %>">
+                        <input type="hidden" name="action" value="addChiTiet">
+                        <div class="form-grid">
+                            <div class="field">
+                                <label for="ct-masp">Sản phẩm</label>
+                                <select id="ct-masp" name="masp" required onchange="onSpChange(this)">
+                                    ${spOpts}
+                                </select>
+                                <span id="stock-hint" class="stock-hint">Chọn sản phẩm để xem tồn kho</span>
+                            </div>
+                            <div class="field">
+                                <label for="ct-soluong">Số lượng <span id="max-label" style="font-size:.78rem;color:#9ca3af"></span></label>
+                                <input id="ct-soluong" name="soluong" type="number" min="1" required value="1">
+                            </div>
+                            <div class="field">
+                                <label for="ct-dongia">Đơn giá</label>
+                                <input id="ct-dongia" name="dongia" type="number" min="0" step="1" placeholder="Tự động theo danh mục">
+                            </div>
+                        </div>
+                        <div class="actions">
+                            <button class="btn btn-primary" type="submit">Thêm vào hóa đơn</button>
+                        </div>
+                    </form>
+                </section>
+<!-- /RIGHT -->
 
         </div><!-- /split-layout -->
     </section>
 </main>
 
 <script>
-function autoFillGia(sel) {
+function onSpChange(sel) {
     var opt = sel.options[sel.selectedIndex];
-    var gia = opt ? opt.getAttribute('data-gia') : '';
-    document.getElementById('ct-dongia').value = gia || '';
+    if (!opt || !opt.value) {
+        document.getElementById('stock-hint').textContent = 'Chọn sản phẩm để xem tồn kho';
+        document.getElementById('stock-hint').className = 'stock-hint';
+        document.getElementById('max-label').textContent = '';
+        document.getElementById('ct-dongia').value = '';
+        return;
+    }
+    var gia = opt.getAttribute('data-gia') || '';
+    var ton = parseInt(opt.getAttribute('data-ton') || '0', 10);
+    document.getElementById('ct-dongia').value = gia;
+    document.getElementById('ct-soluong').max = ton > 0 ? ton : '';
+    document.getElementById('max-label').textContent = ton > 0 ? '(tối đa ' + ton + ')' : '(hết hàng)';
+    var hint = document.getElementById('stock-hint');
+    if (ton <= 0) {
+        hint.textContent = '⚠ Hết hàng';
+        hint.className = 'stock-hint low';
+    } else if (ton <= 5) {
+        hint.textContent = 'Tồn kho: ' + ton + ' — sắp hết';
+        hint.className = 'stock-hint low';
+    } else {
+        hint.textContent = 'Tồn kho: ' + ton;
+        hint.className = 'stock-hint ok';
+    }
 }
 </script>
 </body>
